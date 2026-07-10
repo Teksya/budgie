@@ -1,0 +1,20 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.drift.dart"
+
+linter:
+  rules:
+    public_member_api_docs: false
+    lines_longer_than_80_chars: false
+    always_use_package_imports: false
+    flutter_style_todos: false
+    sort_pub_dependencies: false
+    # Explicit arguments that match a default often document intent in tests
+    # and widget trees; keeping them is a readability choice, not a mistake.
+    avoid_redundant_argument_values: false
+    # The UI is in French; escaping apostrophes inside single-quoted strings
+    # (l'app, d'exemple…) is idiomatic here and fights this rule constantly.
+    avoid_escaping_inner_quotes: false
