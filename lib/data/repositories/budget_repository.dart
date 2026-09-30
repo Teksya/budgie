@@ -58,6 +58,13 @@ class BudgetRepository {
             .map((x) => Money(x.actualAmountCents ?? x.estimatedAmountCents))
             .sum;
 
+        // Paying a charge creates an expense, so this is the slice of
+        // `expenses` that is a one-off rather than a spending habit.
+        final chargesPaid = i
+            .where((x) => x.status == InstanceStatus.paid)
+            .map((x) => Money(x.actualAmountCents ?? x.estimatedAmountCents))
+            .sum;
+
         // The planned monthly savings are reserved from the "reste à vivre"
         // for the whole period, regardless of how much has been moved yet —
         // a stable reserve is easier to reason about than one that grows the
@@ -72,6 +79,7 @@ class BudgetRepository {
             incomePlanned: incomePlanned,
             expenses: expenses,
             unpaidCharges: unpaidCharges,
+            chargesPaid: chargesPaid,
             plannedSavingsRemaining: plannedSavings,
             totalDays: period.endDate.difference(period.startDate).inDays + 1,
             daysRemaining: _daysRemaining(period, now),

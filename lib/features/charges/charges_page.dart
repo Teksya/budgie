@@ -1,14 +1,18 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/app_theme.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/date_x.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
 import 'package:budget/data/repositories/envelope_repository.dart';
+import 'package:budget/features/charges/suggestion_card.dart';
 import 'package:budget/features/envelopes/add_envelope_page.dart';
 import 'package:budget/features/goals/goals_page.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
+import 'package:budget/shared/labels.dart';
 import 'package:budget/shared/widgets/amount_text.dart';
 import 'package:budget/shared/widgets/expressive_fab.dart';
 import 'package:budget/shared/widgets/skeleton.dart';
@@ -22,12 +26,13 @@ class ChargesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final charges = ref.watch(chargesProvider);
     final range = ref.watch(currentPeriodRangeProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Budgets'),
+        title: Text(l.navBudgets),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(28),
           child: Align(
@@ -50,21 +55,21 @@ class ChargesPage extends ConsumerWidget {
       floatingActionButton: ExpressiveFab(
         onPressed: () => context.push('/charges/add'),
         icon: const Icon(Icons.add),
-        label: 'Charge fixe',
+        label: l.fixedCharge,
       ),
       body: charges.when(
         loading: () => const Padding(
           padding: EdgeInsets.all(AppSpacing.md),
           child: SkeletonList(rows: 4),
         ),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (e, _) => Center(child: Text(l.errorWith('$e'))),
         data: (list) {
-          final unpaid = list
-              .where((c) => c.status != InstanceStatus.paid)
-              .toList()
-            ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-          final paid =
-              list.where((c) => c.status == InstanceStatus.paid).toList();
+          final unpaid =
+              list.where((c) => c.status != InstanceStatus.paid).toList()
+                ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+          final paid = list
+              .where((c) => c.status == InstanceStatus.paid)
+              .toList();
 
           final totalDue = unpaid
               .map((c) => Money(c.actualAmountCents ?? c.estimatedAmountCents))
@@ -80,6 +85,7 @@ class ChargesPage extends ConsumerWidget {
             children: [
               _SummaryCard(totalDue: totalDue, count: unpaid.length),
               const SizedBox(height: AppSpacing.lg),
+              const SuggestionCard(),
               const _HubGrid(),
               const SizedBox(height: AppSpacing.lg),
               const _EnvelopesSection(),
@@ -88,7 +94,7 @@ class ChargesPage extends ConsumerWidget {
                 const _EmptyCharges()
               else ...[
                 if (unpaid.isNotEmpty) ...[
-                  const _Header(title: 'À payer'),
+                  _Header(title: l.statusPending),
                   Card(
                     child: Column(
                       children: [
@@ -102,7 +108,7 @@ class ChargesPage extends ConsumerWidget {
                 ],
                 if (paid.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.lg),
-                  const _Header(title: 'Payées'),
+                  _Header(title: l.statusPaid),
                   Card(
                     child: Column(
                       children: [
@@ -131,6 +137,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Container(
@@ -146,7 +153,7 @@ class _SummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Reste à payer ce mois-ci',
+                  l.leftToPayThisMonth,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: scheme.onSecondaryContainer,
                   ),
@@ -181,9 +188,12 @@ class _ChargeTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final isPaid = instance.status == InstanceStatus.paid;
-    final amount = Money(instance.actualAmountCents ?? instance.estimatedAmountCents);
+    final amount = Money(
+      instance.actualAmountCents ?? instance.estimatedAmountCents,
+    );
 
     return ListTile(
       leading: CircleAvatar(
@@ -196,8 +206,8 @@ class _ChargeTile extends ConsumerWidget {
       title: Text(instance.label),
       subtitle: Text(
         isPaid
-            ? 'payée le ${instance.paidDate?.shortLabel ?? ''}'
-            : 'échéance le ${instance.dueDate.shortLabel}',
+            ? l.paidOn(instance.paidDate?.shortLabel ?? '')
+            : l.widgetBillDue(instance.dueDate.shortLabel),
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -219,16 +229,17 @@ class _ChargeTile extends ConsumerWidget {
   }
 
   Future<void> _payDialog(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
     final controller = TextEditingController(
       text: (instance.estimatedAmountCents / 100).toStringAsFixed(2),
     );
-    final accounts = ref.read(accountsProvider).value ?? const [];
-    final accountId = accounts.isNotEmpty ? accounts.first.id : null;
+    final accountId = await ref.read(accountRepositoryProvider).defaultId();
+    if (!context.mounted) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Payer « ${instance.label} »'),
+        title: Text(l.payNamed(instance.label)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -236,19 +247,19 @@ class _ChargeTile extends ConsumerWidget {
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
           ],
-          decoration: const InputDecoration(
-            labelText: 'Montant réel',
-            suffixText: '€',
+          decoration: InputDecoration(
+            labelText: l.actualAmount,
+            suffixText: AppCurrency.instance.symbol,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmer'),
+            child: Text(l.actionConfirm),
           ),
         ],
       ),
@@ -257,11 +268,13 @@ class _ChargeTile extends ConsumerWidget {
     if ((confirmed ?? false) && accountId != null) {
       final value =
           double.tryParse(controller.text.trim().replaceAll(',', '.')) ?? 0;
-      await ref.read(chargeRepositoryProvider).markPaid(
-        instance,
-        actualAmountCents: Money.fromEuros(value).cents,
-        accountId: accountId,
-      );
+      await ref
+          .read(chargeRepositoryProvider)
+          .markPaid(
+            instance,
+            actualAmountCents: Money.fromEuros(value).cents,
+            accountId: accountId,
+          );
     }
     controller.dispose();
   }
@@ -289,27 +302,28 @@ class _HubGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final items = <(IconData, String, VoidCallback)>[
       (
         Icons.savings_outlined,
-        "Objectifs d'épargne",
+        l.savingsGoals,
         () => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const GoalsPage()),
         ),
       ),
       (
         Icons.event_repeat_outlined,
-        'Charges récurrentes',
+        l.recurringChargesShort,
         () => context.push('/recurrences'),
       ),
       (
         Icons.handshake_outlined,
-        'Dettes & crédits',
+        l.debtsCredits,
         () => context.push('/debts'),
       ),
       (
         Icons.add_card_outlined,
-        'Revenu récurrent',
+        l.recurringIncome,
         () => context.push('/charges/add?type=income'),
       ),
     ];
@@ -375,6 +389,7 @@ class _EnvelopesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final envelopes = ref.watch(envelopesProvider).value ?? const [];
 
@@ -389,7 +404,7 @@ class _EnvelopesSection extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Enveloppes', style: theme.textTheme.titleMedium),
+              Text(l.envelopes, style: theme.textTheme.titleMedium),
               TextButton.icon(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -397,7 +412,7 @@ class _EnvelopesSection extends ConsumerWidget {
                   ),
                 ),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Enveloppe'),
+                label: Text(l.envelope),
               ),
             ],
           ),
@@ -407,8 +422,7 @@ class _EnvelopesSection extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Text(
-                'Fixe un plafond mensuel par catégorie (ex. Courses : 300 €) '
-                'pour suivre tes dépenses et être alerté avant de déraper.',
+                l.envelopesIntro,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -438,6 +452,7 @@ class _EnvelopeTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final e = envelope;
@@ -474,7 +489,10 @@ class _EnvelopeTile extends ConsumerWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text(e.category.name, style: theme.textTheme.bodyLarge),
+                  child: Text(
+                    e.category.name,
+                    style: theme.textTheme.bodyLarge,
+                  ),
                 ),
                 Text(
                   '${e.spent.formatRounded()} / ${e.limit.formatRounded()}',
@@ -493,13 +511,15 @@ class _EnvelopeTile extends ConsumerWidget {
                 minHeight: 8,
                 backgroundColor: scheme.surfaceContainerHighest,
                 color: barColor,
+                semanticsLabel: l.envelopeOf(e.category.name),
+                semanticsValue: spokenPercent(l, e.ratio),
               ),
             ),
             const SizedBox(height: 4),
             Text(
               e.isOver
-                  ? 'Dépassé de ${(e.spent - e.limit).format()}'
-                  : 'Reste ${e.remaining.format()}',
+                  ? l.envelopeOverBy((e.spent - e.limit).format())
+                  : l.envelopeLeft(e.remaining.format()),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: e.isOver
                     ? scheme.danger
@@ -515,18 +535,19 @@ class _EnvelopeTile extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Supprimer l'enveloppe « ${envelope.category.name} » ?"),
+        title: Text(l.deleteEnvelopeQuestion(envelope.category.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(l.actionDelete),
           ),
         ],
       ),
@@ -542,6 +563,7 @@ class _EmptyCharges extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     return Card(
       child: Padding(
@@ -554,11 +576,10 @@ class _EmptyCharges extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Aucune charge fixe', style: theme.textTheme.titleMedium),
+            Text(l.noChargesTitle, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              "Ajoute ton loyer, l'électricité, l'eau, internet… "
-              'Elles apparaîtront chaque mois automatiquement.',
+              l.noChargesBody,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

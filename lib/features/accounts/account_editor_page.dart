@@ -1,8 +1,10 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:budget/shared/labels.dart';
 import 'package:drift/drift.dart' show Value;
@@ -43,6 +45,7 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
   late AccountType _type = widget.existing?.type ?? AccountType.checking;
   late String _iconKey = widget.existing?.iconKey ?? 'bank';
   late int _color = widget.existing?.colorValue ?? _palette.first;
+  late String? _currency = widget.existing?.currencyCode;
   bool _saving = false;
 
   @override
@@ -71,6 +74,7 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
           initialBalanceCents: Value(_initialBalance.cents),
           iconKey: Value(_iconKey),
           colorValue: Value(_color),
+          currencyCode: Value(_currency),
         ),
       );
     } else {
@@ -81,6 +85,7 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
           initialBalanceCents: _initialBalance.cents,
           iconKey: _iconKey,
           colorValue: Value(_color),
+          currencyCode: Value(_currency),
         ),
       );
     }
@@ -88,22 +93,20 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
   }
 
   Future<void> _delete() async {
+    final l = L.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Supprimer « ${widget.existing!.name} » ?'),
-        content: const Text(
-          'Les transactions de ce compte seront supprimées. '
-          'Cette action est irréversible.',
-        ),
+        title: Text(l.deleteNamedQuestion(widget.existing!.name)),
+        content: Text(l.deleteAccountWarning),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(l.actionDelete),
           ),
         ],
       ),
@@ -116,27 +119,26 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
       Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible de supprimer le dernier compte.'),
-        ),
+        SnackBar(content: Text(l.cannotDeleteLastAccount)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final editing = widget.existing != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(editing ? 'Modifier le compte' : 'Nouveau compte'),
+        title: Text(editing ? l.editAccount : l.newAccount),
         actions: [
           if (editing)
             IconButton(
               onPressed: _delete,
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Supprimer',
+              tooltip: l.actionDelete,
             ),
         ],
       ),
@@ -152,9 +154,9 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
             controller: _name,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Nom',
-              hintText: 'Compte courant, Livret A…',
+            decoration: InputDecoration(
+              labelText: l.fieldName,
+              hintText: l.accountNameHint,
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -168,28 +170,63 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp('[0-9.,-]')),
             ],
-            decoration: const InputDecoration(
-              labelText: 'Solde initial',
-              helperText: 'Le solde du compte au moment où tu commences',
-              suffixText: '€',
+            decoration: InputDecoration(
+              labelText: l.initialBalance,
+              helperText: l.initialBalanceHelp,
+              suffixText: AppCurrency.instance.symbol,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('Type', style: theme.textTheme.labelLarge),
+          Text(l.fieldType, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
             children: [
               for (final t in AccountType.values)
                 ChoiceChip(
-                  label: Text(t.label),
+                  label: Text(t.label(l)),
                   selected: _type == t,
                   onSelected: (_) => setState(() => _type = t),
                 ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('Icône', style: theme.textTheme.labelLarge),
+          Text(l.accountCurrency, style: theme.textTheme.labelLarge),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              // Null is "the app's currency" — the case for almost everyone,
+              // so it leads and is selected by default.
+              ChoiceChip(
+                label: Text(
+                  l.accountCurrencySameAsApp(AppCurrency.instance.code),
+                ),
+                selected: _currency == null,
+                onSelected: (_) => setState(() => _currency = null),
+              ),
+              for (final code in kCurrencies.keys)
+                if (code != AppCurrency.instance.code)
+                  ChoiceChip(
+                    label: Text(code),
+                    selected: _currency == code,
+                    onSelected: (_) => setState(() => _currency = code),
+                  ),
+            ],
+          ),
+          if (_currency != null &&
+              ref.watch(exchangeRatesProvider).rateFor(_currency) == null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              l.ratesMissing(_currency!),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          Text(l.fieldIcon, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -204,7 +241,7 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('Couleur', style: theme.textTheme.labelLarge),
+          Text(l.fieldColour, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -238,7 +275,7 @@ class _AccountEditorPageState extends ConsumerState<AccountEditorPage> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(editing ? 'Enregistrer' : 'Créer le compte'),
+                : Text(editing ? l.actionSave : l.createAccount),
           ),
         ],
       ),

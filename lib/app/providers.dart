@@ -1,5 +1,6 @@
 import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/date_x.dart';
+import 'package:budget/core/exchange_rates.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/setting_keys.dart';
 import 'package:budget/data/repositories/account_repository.dart';
@@ -14,11 +15,15 @@ import 'package:budget/data/repositories/history_repository.dart';
 import 'package:budget/data/repositories/recurrence_repository.dart';
 import 'package:budget/data/repositories/settings_repository.dart';
 import 'package:budget/data/repositories/stats_repository.dart';
+import 'package:budget/data/repositories/suggestion_repository.dart';
 import 'package:budget/data/repositories/transaction_repository.dart';
+import 'package:budget/domain/services/backup_reminder.dart';
 import 'package:budget/domain/services/backup_service.dart';
 import 'package:budget/domain/services/budget_engine.dart';
+import 'package:budget/domain/services/csv_export_service.dart';
 import 'package:budget/domain/services/onboarding_service.dart';
 import 'package:budget/domain/services/period_service.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,9 +85,38 @@ final debtRepositoryProvider = Provider<DebtRepository>(
   (ref) => DebtRepository(ref.watch(databaseProvider)),
 );
 
-final backupServiceProvider = Provider<BackupService>(
-  (ref) => BackupService(ref.watch(databaseProvider)),
+final suggestionRepositoryProvider = Provider<SuggestionRepository>(
+  (ref) => SuggestionRepository(ref.watch(databaseProvider)),
 );
+
+/// What the app has noticed in the spending history. Recomputed when the
+/// period changes or a suggestion is acted on, not on every transaction.
+final suggestionsProvider = FutureProvider<Suggestions>((ref) async {
+  await ref.watch(openPeriodProvider.future);
+  return ref.watch(suggestionRepositoryProvider).analyse();
+});
+
+final csvExportServiceProvider = Provider<CsvExportService>(
+  (ref) => CsvExportService(ref.watch(databaseProvider)),
+);
+
+final backupServiceProvider = Provider<BackupService>(
+  (ref) => BackupService(
+    ref.watch(databaseProvider),
+    ref.watch(settingsRepositoryProvider),
+  ),
+);
+
+/// Whether the "back up your data" nudge is showing. The rule itself lives in
+/// [isBackupReminderDue], where it can be tested.
+final backupReminderDueProvider = Provider<bool>((ref) {
+  final settings = ref.watch(settingsProvider).value;
+  return isBackupReminderDue(
+    now: DateTime.now(),
+    clockStart: settings?.backupClockStart,
+    snoozedUntil: settings?.backupReminderSnoozedUntil,
+  );
+});
 
 final onboardingServiceProvider = Provider<OnboardingService>(
   (ref) => OnboardingService(ref.watch(databaseProvider)),
@@ -148,6 +182,37 @@ final selectedPeriodTransactionsProvider = StreamProvider<List<TxnView>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchForPeriod(period.id);
 });
 
+/// Everything the month-recap screen shows, for one closed period.
+@immutable
+class PeriodRecap {
+  const PeriodRecap({required this.summary, required this.slices});
+
+  final PeriodSummary summary;
+  final List<CategorySlice> slices;
+}
+
+// The family's type args on the right already document it; annotating breaks
+// call-site inference.
+// ignore: specify_nonobvious_property_types
+final periodRecapProvider = FutureProvider.family<PeriodRecap, int>((
+  ref,
+  periodId,
+) async {
+  final periods = await ref.watch(periodsProvider.future);
+  final period = periods.firstWhere((p) => p.id == periodId);
+  final l = await ref.watch(translationsProvider.future);
+
+  final summary = await ref
+      .watch(historyRepositoryProvider)
+      .watchSummary(period)
+      .first;
+  final slices = await ref
+      .watch(statsRepositoryProvider)
+      .watchCategoryBreakdown(periodId, uncategorizedLabel: l.uncategorized)
+      .first;
+  return PeriodRecap(summary: summary, slices: slices);
+});
+
 final recurrencesProvider = StreamProvider<List<Recurrence>>(
   (ref) => ref.watch(recurrenceRepositoryProvider).watchAll(),
 );
@@ -157,9 +222,9 @@ final recurrencesProvider = StreamProvider<List<Recurrence>>(
 // ignore: specify_nonobvious_property_types
 final chargeHistoryProvider =
     StreamProvider.family<List<RecurrenceInstance>, int>(
-  (ref, recurrenceId) =>
-      ref.watch(recurrenceRepositoryProvider).watchHistory(recurrenceId),
-);
+      (ref, recurrenceId) =>
+          ref.watch(recurrenceRepositoryProvider).watchHistory(recurrenceId),
+    );
 
 final budgetRepositoryProvider = Provider<BudgetRepository>(
   (ref) => BudgetRepository(ref.watch(databaseProvider)),
@@ -194,14 +259,25 @@ final periodStartDayProvider = Provider<int>(
 /// the code. Watching this rebuilds amounts when the currency changes.
 final currencyProvider = Provider<String>((ref) {
   final code = ref.watch(settingsProvider).value?.currency ?? 'EUR';
-  final language = ref.watch(languageProvider);
-  // Numbers follow the app language (grouping/decimal marks).
+  // The *resolved* locale, not the raw setting: on `system` the setting is null
+  // while the app still renders in some language, and reading the setting left
+  // dates and separators French inside an English app.
+  final locale = ref.watch(resolvedLocaleProvider);
+  // Numbers and dates follow the app language (grouping/decimal marks, month
+  // names) — see `date_x.dart`, which passes no locale of its own.
   AppCurrency.instance.configure(
     currencyCode: code,
-    locale: language?.languageCode == 'en' ? 'en_US' : 'fr_FR',
+    locale: locale.languageCode == 'en' ? 'en_US' : 'fr_FR',
   );
   return code;
 });
+
+/// Conversion rates the user typed in, for accounts held in another currency.
+final exchangeRatesProvider = Provider<ExchangeRates>(
+  (ref) => ExchangeRates.fromSettings(
+    ref.watch(settingsProvider).value ?? const {},
+  ),
+);
 
 /// The forced app locale, or null to follow the system language.
 final languageProvider = Provider<Locale?>((ref) {
@@ -212,6 +288,27 @@ final languageProvider = Provider<Locale?>((ref) {
     _ => null,
   };
 });
+
+/// The locale the app actually renders in, system fallback resolved. Widgets
+/// get this from `Localizations`; this is for the code that runs outside the
+/// tree and still has to pick a language.
+final resolvedLocaleProvider = Provider<Locale>((ref) {
+  final forced = ref.watch(languageProvider);
+  if (forced != null) return forced;
+  final device = WidgetsBinding.instance.platformDispatcher.locale;
+  return L.supportedLocales.firstWhere(
+    (s) => s.languageCode == device.languageCode,
+    // English rather than the template French: an unsupported device language
+    // is far more likely to read English.
+    orElse: () => const Locale('en'),
+  );
+});
+
+/// Translations for the few places with no `BuildContext`: notifications, the
+/// home-screen widget, the launcher shortcuts and the first-launch seed.
+final translationsProvider = FutureProvider<L>(
+  (ref) => L.delegate.load(ref.watch(resolvedLocaleProvider)),
+);
 
 // ── Periods ────────────────────────────────────────────────────────────────
 
@@ -294,9 +391,44 @@ final categoryBreakdownProvider = StreamProvider<List<CategorySlice>>((
   ref,
 ) async* {
   final period = await ref.watch(openPeriodProvider.future);
-  yield* ref.watch(statsRepositoryProvider).watchCategoryBreakdown(period.id);
+  final l = await ref.watch(translationsProvider.future);
+  yield* ref
+      .watch(statsRepositoryProvider)
+      .watchCategoryBreakdown(period.id, uncategorizedLabel: l.uncategorized);
+});
+
+/// How many budget months the stats screen is looking at.
+class StatsRangeMonths extends Notifier<int> {
+  @override
+  int build() => 3;
+
+  // A named method reads better at the call site than assigning a field.
+  // ignore: use_setters_to_change_properties
+  void select(int months) => state = months;
+}
+
+final statsRangeMonthsProvider =
+    NotifierProvider<StatsRangeMonths, int>(StatsRangeMonths.new);
+
+final rangeStatsProvider = StreamProvider<RangeStats>((ref) async* {
+  final months = ref.watch(statsRangeMonthsProvider);
+  final l = await ref.watch(translationsProvider.future);
+  yield* ref
+      .watch(statsRepositoryProvider)
+      .watchRangeStats(months: months, uncategorizedLabel: l.uncategorized);
 });
 
 final monthlySeriesProvider = StreamProvider<List<MonthPoint>>(
   (ref) => ref.watch(statsRepositoryProvider).watchMonthlySeries(),
 );
+
+/// Spending so far this period against the same stretch of the previous one.
+/// Null until there is a previous period to compare with.
+final spendingComparisonProvider = StreamProvider<SpendingComparison?>((
+  ref,
+) async* {
+  final period = await ref.watch(openPeriodProvider.future);
+  yield* ref
+      .watch(statsRepositoryProvider)
+      .watchSpendingComparison(period: period, now: DateTime.now());
+});

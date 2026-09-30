@@ -7,6 +7,11 @@ class Accounts extends Table {
   TextColumn get name => text().withLength(min: 1, max: 60)();
   TextColumn get type => textEnum<AccountType>()();
   IntColumn get initialBalanceCents => integer().withDefault(const Constant(0))();
+
+  /// ISO code when this account is held in a currency other than the app's
+  /// main one; null means the main currency. Amounts are still *stored* in the
+  /// main currency — see `ExchangeRates` for why. Added in v7.
+  TextColumn get currencyCode => text().nullable()();
   TextColumn get iconKey => text().withDefault(const Constant('wallet'))();
   IntColumn get colorValue => integer().nullable()();
   BoolColumn get archived => boolean().withDefault(const Constant(false))();

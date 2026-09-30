@@ -2,6 +2,7 @@ import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ class ChargeHistoryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final history = ref.watch(chargeHistoryProvider(recurrence.id)).value ??
@@ -46,11 +48,14 @@ class ChargeHistoryPage extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: _Stat(label: 'Estimé actuel', value: estimate.format()),
+                child: _Stat(
+                  label: l.currentEstimate,
+                  value: estimate.format(),
+                ),
               ),
               Expanded(
                 child: _Stat(
-                  label: 'Moyenne réelle',
+                  label: l.actualAverage,
                   value: amounts.isEmpty ? '—' : average.format(),
                 ),
               ),
@@ -62,8 +67,7 @@ class ChargeHistoryPage extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(
-                  'Pas encore de facture payée pour cette charge. '
-                  "L'historique apparaîtra ici au fil des mois.",
+                  l.noPaidBillYet,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -146,16 +150,22 @@ class ChargeHistoryPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Ton estimé s'écarte de la réalité",
+                      l.estimateDriftTitle,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: scheme.onSecondaryContainer,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'La moyenne réelle est ${average.format()}, '
-                      '${drift.isNegative ? 'sous' : 'au-dessus de'} '
-                      "l'estimé de ${drift.abs.format()}.",
+                      drift.isNegative
+                          ? l.estimateDriftBelow(
+                              average.format(),
+                              drift.abs.format(),
+                            )
+                          : l.estimateDriftAbove(
+                              average.format(),
+                              drift.abs.format(),
+                            ),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: scheme.onSecondaryContainer,
                       ),
@@ -168,7 +178,7 @@ class ChargeHistoryPage extends ConsumerWidget {
                             .setEstimate(recurrence.id, average.cents);
                         if (context.mounted) Navigator.of(context).pop();
                       },
-                      child: Text("Réajuster l'estimé à ${average.format()}"),
+                      child: Text(l.retuneEstimate(average.format())),
                     ),
                   ],
                 ),

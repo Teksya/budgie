@@ -54,6 +54,17 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _iconKeyMeta = const VerificationMeta(
     'iconKey',
   );
@@ -122,6 +133,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     name,
     type,
     initialBalanceCents,
+    currencyCode,
     iconKey,
     colorValue,
     archived,
@@ -157,6 +169,15 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         initialBalanceCents.isAcceptableOrUnknown(
           data['initial_balance_cents']!,
           _initialBalanceCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
         ),
       );
     }
@@ -217,6 +238,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.int,
         data['${effectivePrefix}initial_balance_cents'],
       )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      ),
       iconKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}icon_key'],
@@ -254,6 +279,11 @@ class Account extends DataClass implements Insertable<Account> {
   final String name;
   final AccountType type;
   final int initialBalanceCents;
+
+  /// ISO code when this account is held in a currency other than the app's
+  /// main one; null means the main currency. Amounts are still *stored* in the
+  /// main currency — see `ExchangeRates` for why. Added in v7.
+  final String? currencyCode;
   final String iconKey;
   final int? colorValue;
   final bool archived;
@@ -264,6 +294,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.name,
     required this.type,
     required this.initialBalanceCents,
+    this.currencyCode,
     required this.iconKey,
     this.colorValue,
     required this.archived,
@@ -279,6 +310,9 @@ class Account extends DataClass implements Insertable<Account> {
       map['type'] = Variable<String>($AccountsTable.$convertertype.toSql(type));
     }
     map['initial_balance_cents'] = Variable<int>(initialBalanceCents);
+    if (!nullToAbsent || currencyCode != null) {
+      map['currency_code'] = Variable<String>(currencyCode);
+    }
     map['icon_key'] = Variable<String>(iconKey);
     if (!nullToAbsent || colorValue != null) {
       map['color_value'] = Variable<int>(colorValue);
@@ -295,6 +329,9 @@ class Account extends DataClass implements Insertable<Account> {
       name: Value(name),
       type: Value(type),
       initialBalanceCents: Value(initialBalanceCents),
+      currencyCode: currencyCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currencyCode),
       iconKey: Value(iconKey),
       colorValue: colorValue == null && nullToAbsent
           ? const Value.absent()
@@ -319,6 +356,7 @@ class Account extends DataClass implements Insertable<Account> {
       initialBalanceCents: serializer.fromJson<int>(
         json['initialBalanceCents'],
       ),
+      currencyCode: serializer.fromJson<String?>(json['currencyCode']),
       iconKey: serializer.fromJson<String>(json['iconKey']),
       colorValue: serializer.fromJson<int?>(json['colorValue']),
       archived: serializer.fromJson<bool>(json['archived']),
@@ -336,6 +374,7 @@ class Account extends DataClass implements Insertable<Account> {
         $AccountsTable.$convertertype.toJson(type),
       ),
       'initialBalanceCents': serializer.toJson<int>(initialBalanceCents),
+      'currencyCode': serializer.toJson<String?>(currencyCode),
       'iconKey': serializer.toJson<String>(iconKey),
       'colorValue': serializer.toJson<int?>(colorValue),
       'archived': serializer.toJson<bool>(archived),
@@ -349,6 +388,7 @@ class Account extends DataClass implements Insertable<Account> {
     String? name,
     AccountType? type,
     int? initialBalanceCents,
+    Value<String?> currencyCode = const Value.absent(),
     String? iconKey,
     Value<int?> colorValue = const Value.absent(),
     bool? archived,
@@ -359,6 +399,7 @@ class Account extends DataClass implements Insertable<Account> {
     name: name ?? this.name,
     type: type ?? this.type,
     initialBalanceCents: initialBalanceCents ?? this.initialBalanceCents,
+    currencyCode: currencyCode.present ? currencyCode.value : this.currencyCode,
     iconKey: iconKey ?? this.iconKey,
     colorValue: colorValue.present ? colorValue.value : this.colorValue,
     archived: archived ?? this.archived,
@@ -373,6 +414,9 @@ class Account extends DataClass implements Insertable<Account> {
       initialBalanceCents: data.initialBalanceCents.present
           ? data.initialBalanceCents.value
           : this.initialBalanceCents,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
       iconKey: data.iconKey.present ? data.iconKey.value : this.iconKey,
       colorValue: data.colorValue.present
           ? data.colorValue.value
@@ -390,6 +434,7 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('initialBalanceCents: $initialBalanceCents, ')
+          ..write('currencyCode: $currencyCode, ')
           ..write('iconKey: $iconKey, ')
           ..write('colorValue: $colorValue, ')
           ..write('archived: $archived, ')
@@ -405,6 +450,7 @@ class Account extends DataClass implements Insertable<Account> {
     name,
     type,
     initialBalanceCents,
+    currencyCode,
     iconKey,
     colorValue,
     archived,
@@ -419,6 +465,7 @@ class Account extends DataClass implements Insertable<Account> {
           other.name == this.name &&
           other.type == this.type &&
           other.initialBalanceCents == this.initialBalanceCents &&
+          other.currencyCode == this.currencyCode &&
           other.iconKey == this.iconKey &&
           other.colorValue == this.colorValue &&
           other.archived == this.archived &&
@@ -431,6 +478,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String> name;
   final Value<AccountType> type;
   final Value<int> initialBalanceCents;
+  final Value<String?> currencyCode;
   final Value<String> iconKey;
   final Value<int?> colorValue;
   final Value<bool> archived;
@@ -441,6 +489,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.name = const Value.absent(),
     this.type = const Value.absent(),
     this.initialBalanceCents = const Value.absent(),
+    this.currencyCode = const Value.absent(),
     this.iconKey = const Value.absent(),
     this.colorValue = const Value.absent(),
     this.archived = const Value.absent(),
@@ -452,6 +501,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required String name,
     required AccountType type,
     this.initialBalanceCents = const Value.absent(),
+    this.currencyCode = const Value.absent(),
     this.iconKey = const Value.absent(),
     this.colorValue = const Value.absent(),
     this.archived = const Value.absent(),
@@ -464,6 +514,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? name,
     Expression<String>? type,
     Expression<int>? initialBalanceCents,
+    Expression<String>? currencyCode,
     Expression<String>? iconKey,
     Expression<int>? colorValue,
     Expression<bool>? archived,
@@ -476,6 +527,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (type != null) 'type': type,
       if (initialBalanceCents != null)
         'initial_balance_cents': initialBalanceCents,
+      if (currencyCode != null) 'currency_code': currencyCode,
       if (iconKey != null) 'icon_key': iconKey,
       if (colorValue != null) 'color_value': colorValue,
       if (archived != null) 'archived': archived,
@@ -489,6 +541,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<String>? name,
     Value<AccountType>? type,
     Value<int>? initialBalanceCents,
+    Value<String?>? currencyCode,
     Value<String>? iconKey,
     Value<int?>? colorValue,
     Value<bool>? archived,
@@ -500,6 +553,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       name: name ?? this.name,
       type: type ?? this.type,
       initialBalanceCents: initialBalanceCents ?? this.initialBalanceCents,
+      currencyCode: currencyCode ?? this.currencyCode,
       iconKey: iconKey ?? this.iconKey,
       colorValue: colorValue ?? this.colorValue,
       archived: archived ?? this.archived,
@@ -524,6 +578,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     }
     if (initialBalanceCents.present) {
       map['initial_balance_cents'] = Variable<int>(initialBalanceCents.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
     }
     if (iconKey.present) {
       map['icon_key'] = Variable<String>(iconKey.value);
@@ -550,6 +607,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('initialBalanceCents: $initialBalanceCents, ')
+          ..write('currencyCode: $currencyCode, ')
           ..write('iconKey: $iconKey, ')
           ..write('colorValue: $colorValue, ')
           ..write('archived: $archived, ')
@@ -7386,6 +7444,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       required String name,
       required AccountType type,
       Value<int> initialBalanceCents,
+      Value<String?> currencyCode,
       Value<String> iconKey,
       Value<int?> colorValue,
       Value<bool> archived,
@@ -7398,6 +7457,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<AccountType> type,
       Value<int> initialBalanceCents,
+      Value<String?> currencyCode,
       Value<String> iconKey,
       Value<int?> colorValue,
       Value<bool> archived,
@@ -7529,6 +7589,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get initialBalanceCents => $composableBuilder(
     column: $table.initialBalanceCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7712,6 +7777,11 @@ class $$AccountsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get iconKey => $composableBuilder(
     column: $table.iconKey,
     builder: (column) => ColumnOrderings(column),
@@ -7758,6 +7828,11 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<int> get initialBalanceCents => $composableBuilder(
     column: $table.initialBalanceCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
     builder: (column) => column,
   );
 
@@ -7942,6 +8017,7 @@ class $$AccountsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<AccountType> type = const Value.absent(),
                 Value<int> initialBalanceCents = const Value.absent(),
+                Value<String?> currencyCode = const Value.absent(),
                 Value<String> iconKey = const Value.absent(),
                 Value<int?> colorValue = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
@@ -7952,6 +8028,7 @@ class $$AccountsTableTableManager
                 name: name,
                 type: type,
                 initialBalanceCents: initialBalanceCents,
+                currencyCode: currencyCode,
                 iconKey: iconKey,
                 colorValue: colorValue,
                 archived: archived,
@@ -7964,6 +8041,7 @@ class $$AccountsTableTableManager
                 required String name,
                 required AccountType type,
                 Value<int> initialBalanceCents = const Value.absent(),
+                Value<String?> currencyCode = const Value.absent(),
                 Value<String> iconKey = const Value.absent(),
                 Value<int?> colorValue = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
@@ -7974,6 +8052,7 @@ class $$AccountsTableTableManager
                 name: name,
                 type: type,
                 initialBalanceCents: initialBalanceCents,
+                currencyCode: currencyCode,
                 iconKey: iconKey,
                 colorValue: colorValue,
                 archived: archived,

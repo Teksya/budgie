@@ -6,6 +6,7 @@ import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
 import 'package:budget/features/charges/add_charge_page.dart';
 import 'package:budget/features/charges/charge_history_page.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/labels.dart';
 import 'package:budget/shared/widgets/skeleton.dart';
 import 'package:flutter/material.dart';
@@ -16,16 +17,22 @@ class RecurrencesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final recurrences = ref.watch(recurrencesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Charges & revenus récurrents')),
+      appBar: AppBar(title: Text(l.recurringLabel)),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => openNewRecurrence(context),
+        icon: const Icon(Icons.add),
+        label: Text(l.actionAdd),
+      ),
       body: recurrences.when(
         loading: () => const Padding(
           padding: EdgeInsets.all(AppSpacing.md),
           child: SkeletonList(rows: 4),
         ),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (e, _) => Center(child: Text(l.errorWith('$e'))),
         data: (all) {
           if (all.isEmpty) return const _Empty();
           final charges =
@@ -41,12 +48,12 @@ class RecurrencesPage extends ConsumerWidget {
             ),
             children: [
               if (incomes.isNotEmpty) ...[
-                const _Header('Revenus récurrents'),
+                _Header(l.recurringIncomes),
                 Card(child: Column(children: [for (final r in incomes) _Row(r: r)])),
                 const SizedBox(height: AppSpacing.lg),
               ],
               if (charges.isNotEmpty) ...[
-                const _Header('Charges fixes & abonnements'),
+                _Header(l.recurringCharges),
                 Card(child: Column(children: [for (final r in charges) _Row(r: r)])),
               ],
             ],
@@ -64,13 +71,14 @@ class _Row extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final subtitle = [
       Money(r.estimatedAmountCents).format(),
-      r.frequency.label.toLowerCase(),
-      if (r.isVariable) 'variable',
-      if (!r.active) 'désactivé',
+      r.frequency.label(l).toLowerCase(),
+      if (r.isVariable) l.recurrenceVariable,
+      if (!r.active) l.recurrenceDisabled,
     ].join(' · ');
 
     return Opacity(
@@ -99,17 +107,17 @@ class _Row extends ConsumerWidget {
             _ => null,
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+            PopupMenuItem(value: 'edit', child: Text(l.edit)),
             if (r.isVariable)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'history',
-                child: Text('Historique & moyenne'),
+                child: Text(l.historyAndAverage),
               ),
             PopupMenuItem(
               value: 'toggle',
-              child: Text(r.active ? 'Désactiver' : 'Activer'),
+              child: Text(r.active ? l.disable : l.enable),
             ),
-            const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+            PopupMenuItem(value: 'delete', child: Text(l.actionDelete)),
           ],
         ),
         onTap: () => openRecurrenceEditor(context, r),
@@ -118,22 +126,20 @@ class _Row extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Supprimer « ${r.name} » ?'),
-        content: const Text(
-          'La récurrence ne générera plus de nouvelles échéances. '
-          'Les échéances déjà créées ce mois-ci restent.',
-        ),
+        title: Text(l.deleteNamedQuestion(r.name)),
+        content: Text(l.deleteRecurrenceWarning),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(l.actionDelete),
           ),
         ],
       ),
@@ -159,22 +165,67 @@ class _Header extends StatelessWidget {
   );
 }
 
+/// Opens the editor for a brand-new recurrence, asking which kind first.
+Future<void> openNewRecurrence(BuildContext context) async {
+  final l = L.of(context);
+  final income = await showModalBottomSheet<bool>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.event_repeat_outlined),
+            title: Text(l.fixedCharge),
+            subtitle: Text(l.chargeNameHint),
+            onTap: () => Navigator.pop(sheet, false),
+          ),
+          ListTile(
+            leading: const Icon(Icons.add_card_outlined),
+            title: Text(l.recurringIncome),
+            subtitle: Text(l.incomeNameHint),
+            onTap: () => Navigator.pop(sheet, true),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (income == null || !context.mounted) return;
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => AddChargePage(income: income)),
+  );
+}
+
 class _Empty extends StatelessWidget {
   const _Empty();
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Text(
-          'Aucune récurrence.\nAjoute une charge fixe ou un salaire depuis '
-          "l'onglet Budgets.",
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.event_repeat_outlined,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(l.noRecurrencesTitle, style: theme.textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              l.noRecurrencesBody,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
 import 'package:budget/data/repositories/account_repository.dart';
 import 'package:budget/features/accounts/account_editor_page.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:budget/shared/labels.dart';
 import 'package:budget/shared/widgets/amount_text.dart';
@@ -14,21 +15,22 @@ class AccountsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final accounts = ref.watch(accountsWithBalanceProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Comptes')),
+      appBar: AppBar(title: Text(l.accounts)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => openAccountEditor(context),
         icon: const Icon(Icons.add),
-        label: const Text('Compte'),
+        label: Text(l.account),
       ),
       body: accounts.when(
         loading: () => const Padding(
           padding: EdgeInsets.all(AppSpacing.md),
           child: SkeletonList(rows: 4),
         ),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (e, _) => Center(child: Text(l.errorWith('$e'))),
         data: (list) => ListView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,
@@ -52,6 +54,7 @@ class _AccountCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final a = item.account;
@@ -72,7 +75,7 @@ class _AccountCard extends ConsumerWidget {
             child: Icon(iconFor(a.iconKey)),
           ),
           title: Text(a.name, style: theme.textTheme.titleMedium),
-          subtitle: Text(a.type.label),
+          subtitle: Text(a.type.label(l)),
           trailing: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -82,7 +85,12 @@ class _AccountCard extends ConsumerWidget {
                 colorBySign: true,
                 style: theme.textTheme.titleMedium,
               ),
-              Text('solde', style: theme.textTheme.labelSmall),
+              Text(
+                a.currencyCode == null
+                    ? l.balance
+                    : '${ref.watch(exchangeRatesProvider).fromMain(item.balance, a.currencyCode).format()} ${a.currencyCode}',
+                style: theme.textTheme.labelSmall,
+              ),
             ],
           ),
           onTap: () => openAccountEditor(context, existing: a),

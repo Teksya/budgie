@@ -1,0 +1,13 @@
+Budgie parle maintenant anglais, et voit plus loin.
+
+• Prévision : « à ce rythme, tu finis le mois à… »
+• Comparaison avec le mois dernier, à jours égaux
+• Page Stats repensée : 1 à 12 mois, évolution par catégorie
+• Récap de fin de mois
+• Suggestions : abonnements repérés, plafonds proposés
+• Export d'un mois en CSV
+• Plusieurs devises, avec ton propre taux
+• Dupliquer une dépense, annuler une suppression
+• Recherche par montant
+
+Toujours hors ligne. Tes données restent chez toi.

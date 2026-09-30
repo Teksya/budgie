@@ -6,12 +6,18 @@ import 'package:budget/core/date_x.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/enums.dart';
 import 'package:budget/domain/services/budget_engine.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:quick_actions/quick_actions.dart';
 
-/// Pushes the current "reste à vivre" to the home-screen widget whenever it
-/// changes, and routes taps on the quick-add widget to the add screen.
+/// Pushes app state out to the OS surfaces: the home-screen widgets and the
+/// launcher shortcut. Also routes taps on the quick-add widget to the add
+/// screen.
+///
+/// Every string here is user-visible outside the app, where there is no
+/// `BuildContext`, so they come from [translationsProvider].
 class HomeWidgetSync extends ConsumerStatefulWidget {
   const HomeWidgetSync({required this.child, super.key});
 
@@ -22,8 +28,10 @@ class HomeWidgetSync extends ConsumerStatefulWidget {
 }
 
 class _HomeWidgetSyncState extends ConsumerState<HomeWidgetSync> {
-  static const _budgetProvider = 'com.olivier.budget.BudgetWidgetProvider';
-  static const _billProvider = 'com.olivier.budget.BillWidgetProvider';
+  // Fully-qualified names: they must track the Android applicationId, or the
+  // home-screen widgets silently stop refreshing.
+  static const _budgetProvider = 'com.olivierd.budgie.BudgetWidgetProvider';
+  static const _billProvider = 'com.olivierd.budgie.BillWidgetProvider';
   StreamSubscription<Uri?>? _clicks;
 
   @override
@@ -51,21 +59,42 @@ class _HomeWidgetSyncState extends ConsumerState<HomeWidgetSync> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(snapshotProvider, (_, next) {
-      final snapshot = next.value;
-      if (snapshot != null) unawaited(_push(snapshot));
-    });
+    ref
+      ..listen(snapshotProvider, (_, next) {
+        final snapshot = next.value;
+        if (snapshot != null) unawaited(_push(snapshot));
+      })
+      // The launcher shortcut is registered in `main` so a cold start catches
+      // the intent; only its label waits for the language to be known.
+      ..listen(translationsProvider, (_, next) {
+        final l = next.value;
+        if (l != null) unawaited(_pushShortcut(l));
+      });
     return widget.child;
+  }
+
+  Future<void> _pushShortcut(L l) async {
+    try {
+      await const QuickActions().setShortcutItems([
+        ShortcutItem(type: 'add_expense', localizedTitle: l.shortcutAddExpense),
+      ]);
+    } on Object catch (e) {
+      debugPrint('setShortcutItems failed: $e');
+    }
   }
 
   Future<void> _push(BudgetSnapshot snapshot) async {
     try {
+      final l = await ref.read(translationsProvider.future);
       final label = ref.read(currentPeriodRangeProvider).label;
       await HomeWidget.saveWidgetData<String>(
         'remaining',
         snapshot.remaining.format(),
       );
-      await HomeWidget.saveWidgetData<String>('label', 'Reste à vivre · $label');
+      await HomeWidget.saveWidgetData<String>(
+        'label',
+        l.widgetRemainingLabel(label),
+      );
       await HomeWidget.updateWidget(qualifiedAndroidName: _budgetProvider);
 
       // Next unpaid charge, soonest first.
@@ -83,10 +112,10 @@ class _HomeWidgetSyncState extends ConsumerState<HomeWidgetSync> {
         );
         await HomeWidget.saveWidgetData<String>(
           'bill_due',
-          'échéance le ${next.dueDate.shortLabel}',
+          l.widgetBillDue(next.dueDate.shortLabel),
         );
       } else {
-        await HomeWidget.saveWidgetData<String>('bill_name', 'Rien à payer 🎉');
+        await HomeWidget.saveWidgetData<String>('bill_name', l.widgetNothingDue);
         await HomeWidget.saveWidgetData<String>('bill_due', '');
       }
       await HomeWidget.updateWidget(qualifiedAndroidName: _billProvider);

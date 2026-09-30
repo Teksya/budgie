@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Auto Backup rules for API 26-30 (`android:fullBackupContent`).
+     API 31+ uses data_extraction_rules.xml instead; keep the two in sync.
+
+     Everything under the app's data directory is backed up by default, which
+     is what we want: budget.sqlite and the receipt photos in app_flutter/
+     travel with the user to a new phone. Android encrypts these backups
+     end-to-end with the device lockscreen PIN (Android 9+).
+
+     The only exclusion is the SQLite shared-memory index. It is a derived file
+     rebuilt from the -wal on open, so restoring a stale one is pointless at
+     best. The -wal itself is deliberately kept: together with the .sqlite it
+     holds every committed transaction, and SQLite replays it on open exactly
+     as it would after a crash. -->
+<full-backup-content>
+    <exclude domain="root" path="app_flutter/budget.sqlite-shm" />
+</full-backup-content>

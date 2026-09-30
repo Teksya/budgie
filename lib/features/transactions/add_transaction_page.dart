@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
@@ -186,9 +187,24 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     return true;
   }
 
+  /// The currency this entry is being typed in: the selected account's, or the
+  /// app's when the account has none of its own.
+  String? get _entryCurrency {
+    final accounts = ref.read(accountsProvider).value ?? const [];
+    for (final a in accounts) {
+      if (a.id == _accountId) return a.currencyCode;
+    }
+    return null;
+  }
+
   Future<void> _save() async {
-    final amount = _parsedAmount;
     final accountId = _accountId;
+    // Amounts are stored in the main currency, converted once here. Storing
+    // them natively would mean re-converting every past month whenever a rate
+    // is corrected, and a budget whose history moves is not a budget.
+    final amount = _parsedAmount == null
+        ? null
+        : ref.read(exchangeRatesProvider).toMain(_parsedAmount!, _entryCurrency);
     if (!_valid || amount == null || accountId == null) return;
     setState(() => _saving = true);
     final repo = ref.read(transactionRepositoryProvider);
@@ -323,12 +339,28 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
           ),
           Center(
             child: Text(
-              '€',
+              // In a foreign-currency account the figure being typed is in
+              // that currency, so say so instead of showing the app's symbol.
+              _entryCurrency ?? AppCurrency.instance.symbol,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
+          if (_entryCurrency != null && _parsedAmount != null)
+            Center(
+              child: Text(
+                L.of(context).ratesConverted(
+                  ref
+                      .watch(exchangeRatesProvider)
+                      .toMain(_parsedAmount!, _entryCurrency)
+                      .format(),
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           const SizedBox(height: AppSpacing.md),
           NumericKeypad(
             value: _amount.text,
@@ -446,7 +478,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                 ],
                 decoration: InputDecoration(
                   labelText: L.of(context).sharedTotal,
-                  suffixText: '€',
+                  suffixText: AppCurrency.instance.symbol,
                 ),
               ),
             const SizedBox(height: AppSpacing.md),
@@ -583,7 +615,7 @@ class _ScanEmptyDialog extends StatelessWidget {
       actions: [
         FilledButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('OK'),
+          child: Text(L.of(context).actionOk),
         ),
       ],
     );
@@ -774,11 +806,11 @@ class _ReceiptField extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          const Expanded(child: Text('Ticket joint')),
+          Expanded(child: Text(L.of(context).receiptAttached)),
           IconButton(
             onPressed: onRemove,
             icon: const Icon(Icons.close),
-            tooltip: 'Retirer',
+            tooltip: L.of(context).actionRemove,
           ),
         ],
       );
@@ -787,16 +819,16 @@ class _ReceiptField extends StatelessWidget {
       children: [
         Icon(Icons.receipt_long_outlined, color: scheme.onSurfaceVariant),
         const SizedBox(width: AppSpacing.sm),
-        const Expanded(child: Text('Photo du ticket')),
+        Expanded(child: Text(L.of(context).receiptPhoto)),
         IconButton(
           onPressed: () => onPick(ImageSource.camera),
           icon: const Icon(Icons.photo_camera_outlined),
-          tooltip: 'Prendre une photo',
+          tooltip: L.of(context).takePhoto,
         ),
         IconButton(
           onPressed: () => onPick(ImageSource.gallery),
           icon: const Icon(Icons.photo_library_outlined),
-          tooltip: 'Choisir dans la galerie',
+          tooltip: L.of(context).fromGallery,
         ),
       ],
     );

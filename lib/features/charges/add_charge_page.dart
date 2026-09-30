@@ -1,8 +1,10 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:budget/shared/labels.dart';
 import 'package:drift/drift.dart' show Value;
@@ -73,6 +75,7 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
   Future<void> _save() async {
     if (!_valid || _accountId == null) return;
     setState(() => _saving = true);
+    final l = L.of(context);
     final repo = ref.read(recurrenceRepositoryProvider);
 
     if (_editing) {
@@ -111,8 +114,8 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
       SnackBar(
         content: Text(
           _editing
-              ? 'Modifié'
-              : (_income ? 'Revenu récurrent ajouté' : 'Charge ajoutée'),
+              ? l.savedChanges
+              : (_income ? l.recurringIncomeAdded : l.chargeAdded),
         ),
       ),
     );
@@ -120,6 +123,7 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final kind = _income ? CategoryKind.income : CategoryKind.expense;
     final categories = (ref.watch(categoriesProvider).value ?? const [])
@@ -135,8 +139,8 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
       appBar: AppBar(
         title: Text(
           _editing
-              ? 'Modifier'
-              : (_income ? 'Revenu récurrent' : 'Nouvelle charge fixe'),
+              ? l.edit
+              : (_income ? l.recurringIncome : l.newFixedCharge),
         ),
       ),
       body: ListView(
@@ -152,10 +156,8 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              labelText: 'Nom',
-              hintText: _income
-                  ? 'Salaire, Allocation, Pension…'
-                  : 'Loyer, Électricité, Internet…',
+              labelText: l.fieldName,
+              hintText: _income ? l.incomeNameHint : l.chargeNameHint,
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -168,9 +170,9 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
             ],
             decoration: InputDecoration(
               labelText: _income
-                  ? 'Montant net'
-                  : (_isVariable ? 'Montant estimé' : 'Montant'),
-              suffixText: '€',
+                  ? l.netAmount
+                  : (_isVariable ? l.estimatedAmount : l.amount),
+              suffixText: AppCurrency.instance.symbol,
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -178,17 +180,16 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
             const SizedBox(height: AppSpacing.sm),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Montant variable'),
+              title: Text(l.variableAmount),
               subtitle: Text(
-                "Comme l'électricité ou l'eau : tu corriges le montant réel "
-                'à réception de la facture.',
+                l.variableAmountHelp,
                 style: theme.textTheme.bodySmall,
               ),
               value: _isVariable,
               onChanged: (v) => setState(() => _isVariable = v),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Type', style: theme.textTheme.labelLarge),
+            Text(l.fieldType, style: theme.textTheme.labelLarge),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
@@ -198,7 +199,7 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
                   RecurrenceNature.subscription,
                 ])
                   ChoiceChip(
-                    label: Text(n.label),
+                    label: Text(n.label(l)),
                     selected: _nature == n,
                     onSelected: (_) => setState(() => _nature = n),
                   ),
@@ -206,7 +207,7 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
             ),
           ],
           const SizedBox(height: AppSpacing.md),
-          Text('Catégorie', style: theme.textTheme.labelLarge),
+          Text(l.category, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -228,24 +229,24 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<Frequency>(
             initialValue: _frequency,
-            decoration: const InputDecoration(labelText: 'Périodicité'),
+            decoration: InputDecoration(labelText: l.frequency),
             items: [
               for (final f in Frequency.values)
-                DropdownMenuItem(value: f, child: Text(f.label)),
+                DropdownMenuItem(value: f, child: Text(f.label(l))),
             ],
             onChanged: (v) => setState(() => _frequency = v ?? _frequency),
           ),
           const SizedBox(height: AppSpacing.md),
           _DueDayField(
             day: _dueDay,
-            label: _income ? 'Jour de versement' : "Jour d'échéance",
+            label: _income ? l.payDayLabel : l.dueDayLabel,
             onChanged: (d) => setState(() => _dueDay = d),
           ),
           if (accounts.length > 1) ...[
             const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<int>(
               initialValue: _accountId,
-              decoration: const InputDecoration(labelText: 'Compte'),
+              decoration: InputDecoration(labelText: l.account),
               items: [
                 for (final a in accounts)
                   DropdownMenuItem(value: a.id, child: Text(a.name)),
@@ -262,11 +263,7 @@ class _AddChargePageState extends ConsumerState<AddChargePage> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(
-                    _income
-                        ? 'Enregistrer le revenu'
-                        : 'Enregistrer la charge',
-                  ),
+                : Text(_income ? l.saveIncome : l.saveCharge),
           ),
         ],
       ),
@@ -291,7 +288,7 @@ class _DueDayField extends StatelessWidget {
       children: [
         Expanded(
           child: Text(
-            '$label : le $day',
+            L.of(context).dueDayOn(label, day),
             style: Theme.of(context).textTheme.bodyLarge,
           ),
         ),

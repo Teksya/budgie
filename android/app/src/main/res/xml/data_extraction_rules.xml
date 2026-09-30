@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Auto Backup rules for API 31+ (`android:dataExtractionRules`).
+     Same policy as backup_rules.xml, which covers API 26-30; keep both in sync.
+
+     Both cloud backup and device-to-device transfer carry the whole database
+     and the receipt photos, so changing phones does not cost the user their
+     budget history. See backup_rules.xml for why the -shm file is the only
+     thing left out. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="app_flutter/budget.sqlite-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="app_flutter/budget.sqlite-shm" />
+    </device-transfer>
+</data-extraction-rules>

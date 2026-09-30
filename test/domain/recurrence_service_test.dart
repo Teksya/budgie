@@ -88,14 +88,25 @@ void main() {
       );
     });
 
-    test('nothing before the start date', () {
+    test('a due day already past in the starting month still counts', () {
       final dates = RecurrenceService.dueDatesFor(
         rec(dueDayOfMonth: 5, startDate: DateTime(2026, 7, 20)),
         start: DateTime(2026, 7),
         endInclusive: DateTime(2026, 7, 31),
       );
-      // The 5th is before the 20 Jul start, so this month produces nothing.
-      expect(dates, isEmpty);
+      // Declared on the 20th, but the rent was due — and paid — on the 5th.
+      // Skipping it left the first month with no charges and no salary, which
+      // is what made a late-in-the-month signup open on "over budget".
+      expect(dates, [DateTime(2026, 7, 5)]);
+    });
+
+    test('nothing before the period the start date falls in', () {
+      final dates = RecurrenceService.dueDatesFor(
+        rec(dueDayOfMonth: 5, startDate: DateTime(2026, 8, 3)),
+        start: DateTime(2026, 7),
+        endInclusive: DateTime(2026, 7, 31),
+      );
+      expect(dates, isEmpty, reason: 'August recurrence, July period');
     });
 
     test('nothing after the end date', () {

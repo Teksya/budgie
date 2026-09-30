@@ -2,6 +2,7 @@ import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
 import 'package:budget/data/repositories/settings_repository.dart';
 import 'package:budget/domain/services/auth_service.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,10 +46,10 @@ class _AppLockState extends ConsumerState<AppLock>
   bool get _enabled =>
       ref.watch(settingsProvider).value?.biometricEnabled ?? false;
 
-  Future<void> _promptUnlock() async {
+  Future<void> _promptUnlock(String reason) async {
     if (_prompting) return;
     _prompting = true;
-    final ok = await AuthService.instance.authenticate();
+    final ok = await AuthService.instance.authenticate(reason);
     _prompting = false;
     if (ok && mounted) setState(() => _unlocked = true);
   }
@@ -57,8 +58,11 @@ class _AppLockState extends ConsumerState<AppLock>
   Widget build(BuildContext context) {
     if (!_enabled || _unlocked) return widget.child;
 
+    final l = L.of(context);
     // Kick off the prompt automatically the first time we show the lock.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _promptUnlock());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _promptUnlock(l.unlockReason),
+    );
 
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
@@ -80,12 +84,12 @@ class _AppLockState extends ConsumerState<AppLock>
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Budget verrouillé', style: Theme.of(context).textTheme.titleLarge),
+            Text(l.lockedTitle, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpacing.sm),
             FilledButton.icon(
-              onPressed: _promptUnlock,
+              onPressed: () => _promptUnlock(l.unlockReason),
               icon: const Icon(Icons.fingerprint),
-              label: const Text('Déverrouiller'),
+              label: Text(l.unlock),
             ),
           ],
         ),

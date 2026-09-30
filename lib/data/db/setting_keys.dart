@@ -20,6 +20,13 @@ abstract final class SettingKeys {
   /// ISO-8601 timestamp of the last successful backup.
   static const lastBackupAt = 'last_backup_at';
 
+  /// ISO-8601 timestamp the backup clock starts from when no backup has ever
+  /// been made. Without it a fresh install would be nagged from day one.
+  static const firstLaunchAt = 'first_launch_at';
+
+  /// ISO-8601 timestamp before which the backup reminder stays hidden.
+  static const backupReminderSnoozedUntil = 'backup_reminder_snoozed_until';
+
   /// Set once the first-launch seed has run.
   static const seeded = 'seeded';
 
@@ -34,6 +41,10 @@ abstract final class SettingKeys {
 
   /// Daily "log your expenses" reminder at 20:00.
   static const dailyReminder = 'daily_reminder';
+
+  /// Newline-separated keys of the suggestions the user has waved away, so
+  /// they are not offered again next month.
+  static const dismissedSuggestions = 'dismissed_suggestions';
 }
 
 abstract final class SettingDefaults {

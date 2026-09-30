@@ -34,6 +34,9 @@ class AppCurrency {
 
   void configure({required String currencyCode, required String locale}) {
     code = currencyCode;
+    // Dates go through `DateFormat` with no explicit locale (see `date_x.dart`),
+    // so this is also what makes month and day names follow the app language.
+    Intl.defaultLocale = locale;
     final symbol = kCurrencies[currencyCode] ?? currencyCode;
     final decimals = kZeroDecimalCurrencies.contains(currencyCode) ? 0 : 2;
     _full = NumberFormat.currency(
@@ -47,6 +50,10 @@ class AppCurrency {
       decimalDigits: 0,
     );
   }
+
+  /// The symbol on its own, for the `suffixText` of amount fields — those are
+  /// raw number inputs, so they cannot go through [full].
+  String get symbol => kCurrencies[code] ?? code;
 
   String full(double value) => _full.format(value);
   String rounded(double value) => _rounded.format(value);

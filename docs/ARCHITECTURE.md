@@ -131,7 +131,9 @@ Les montants sont des `INTEGER` (centimes).
 `debtId`, `transactionId`, `date`, `amountCents`, `principalCents`, `interestCents`
 
 ### `settings` (clé/valeur)
-`periodStartDay`, `themeMode`, `useDynamicColor`, `seedColor`, `biometricEnabled`, `notificationsEnabled`, `lastBackupAt`, `alertThresholdPercent`
+`periodStartDay`, `themeMode`, `useDynamicColor`, `seedColor`, `biometricEnabled`, `notificationsEnabled`, `lastBackupAt`, `alertThresholdPercent`, `currency`, `language`, `dailyReminder`, `firstLaunchAt`, `backupReminderSnoozedUntil`
+
+**Horloge de sauvegarde.** `lastBackupAt` est écrite à chaque export réussi (`BackupService.exportAndShare`, sauf si l'utilisateur ferme la feuille de partage). `firstLaunchAt` sert de point de départ tant qu'aucune sauvegarde n'a jamais été faite — sans elle, une installation neuve serait harcelée dès le premier jour. Le rappel se déclenche au-delà de 30 jours (`isBackupReminderDue`, fonction pure testée) ; « Plus tard » écrit `backupReminderSnoozedUntil` à +7 jours.
 
 ---
 
@@ -174,12 +176,85 @@ Modifier une transaction d'une période passée invalide le `carryOverIn` de tou
 ## 5. Conventions
 
 - Dart : `dart format`, `flutter analyze` sans warning, `very_good_analysis` en lints.
-- Nommage : anglais dans le code, **français dans l'UI**.
+- Nommage : anglais dans le code, **UI bilingue fr/en** (§ 5.1).
 - Un widget par fichier au-delà de 80 lignes.
 - Pas de logique métier dans les widgets : tout passe par un provider qui appelle un service.
 - Les DAO renvoient des `Stream` ; l'UI est réactive de bout en bout.
-- Migrations Drift : jamais de `deleteAll` en prod, toujours une `MigrationStrategy` numérotée.
+- Migrations Drift : jamais de `deleteAll` en prod, toujours une `MigrationStrategy` numérotée (§ 5.2).
 - Tests obligatoires sur `budget_engine`, `period_service`, `recurrence_service`.
+- **Jamais de `ref.read(unStreamProvider).value` dans un callback** (§ 5.3).
+
+### 5.1 Localisation
+
+Zéro chaîne d'UI en dur : tout passe par `lib/l10n/app_fr.arb` (template) et
+`app_en.arb`, générés en classe `L` par `flutter gen-l10n`.
+
+- **Widgets** : `L.of(context)`, gardé dans un `final l` en tête de `build`.
+- **Sans `BuildContext`** (notifications, widgets d'accueil, raccourci du
+  lanceur) : `translationsProvider`, qui résout la locale via
+  `resolvedLocaleProvider` (réglage forcé, sinon langue de l'appareil, sinon
+  anglais).
+- **Libellés d'enums** : extensions dans `shared/labels.dart`, qui prennent un
+  `L` en paramètre plutôt qu'un contexte, pour rester utilisables hors widgets.
+- **Dates et montants** : aucun `DateFormat` ne reçoit de locale explicite. Ils
+  suivent `Intl.defaultLocale`, posé par `AppCurrency.configure` depuis le
+  réglage de langue. Le symbole monétaire vient de `AppCurrency.instance.symbol`,
+  jamais d'un `'€'` en dur.
+- **Catégories semées** : traduites **une fois**, au premier lancement, dans la
+  langue de l'appareil (`defaultCategories(L)`). Ce sont ensuite des lignes
+  utilisateur ordinaires — changer de langue ne les renomme pas, et c'est voulu.
+  Corollaire : les presets de l'onboarding doivent référencer les mêmes clés
+  `l.catXxx`, sinon ils ne retrouvent plus la catégorie en base.
+- **Scanner de tickets** : les mots-clés OCR contiennent les deux langues en
+  permanence — un ticket est imprimé par le commerçant, pas par le téléphone.
+
+`test/l10n_test.dart` échoue si une clé n'existe que d'un côté ou si une
+traduction anglaise est restée identique au français.
+
+### 5.2 Ce qu'une mise à jour Play a le droit de faire aux données
+
+- `onUpgrade` est **enveloppé dans une transaction** : Drift ne le fait pas, et
+  n'écrit `user_version` qu'après un retour sans erreur. Sans la transaction,
+  une migration qui échoue à mi-parcours laisse le schéma à moitié migré sous
+  l'ancien numéro de version, et le lancement suivant rejoue la chaîne :
+  `createTable` est idempotent (`IF NOT EXISTS`), **`addColumn` ne l'est pas** —
+  boucle de crash définitive.
+- Une base plus récente que le build (restauration d'une sauvegarde Android sur
+  une version antérieure) est **refusée bruyamment** plutôt que réétiquetée à la
+  baisse, ce qui corromprait en silence.
+- Jamais de `DROP` ni de `delete()` dans `onUpgrade`. Une colonne devenue
+  inutile se laisse en place.
+- `driftDatabase(name: 'budget')` et l'`applicationId` sont **définitifs** :
+  changer l'un ou l'autre est un effacement total côté utilisateur.
+- Le filet de test est `test/migration_test.dart` : il fabrique une base au
+  schéma v1, la fait migrer par le vrai `AppDatabase`, et vérifie que les
+  données survivent, que l'échec revient en arrière, et que la rétrogradation
+  est refusée. `drift_dev schema dump` serait l'outil normal, mais
+  `drift_dev > 2.34.0` exige `analyzer 13`, incompatible avec le SDK Flutter
+  épinglé — d'où le test écrit à la main.
+- **Sauvegarde Android** déclarée explicitement dans le manifeste
+  (`allowBackup="true"` + `backup_rules.xml` / `data_extraction_rules.xml`) :
+  la base part chez Google au changement de téléphone. À déclarer dans *Data
+  Safety* au même titre que la télémétrie ML Kit (D6).
+- `BackupService` : toute table ajoutée au schéma doit l'être aussi dans le
+  dump, sinon la restauration l'efface — un `assert` sur `allTables` le rappelle
+  au prochain ajout (c'est ce qui était arrivé à `favorites`).
+
+### 5.3 Lire une donnée depuis un callback (Riverpod 3)
+
+Riverpod 3 **auto-dispose tous les providers par défaut**. Un provider n'est
+vivant que tant qu'un `build` le `watch`. Conséquences dans un `onPressed`,
+un `onTap` ou une méthode `Future<void> _faireUnTruc()` :
+
+- `ref.read(unStreamProvider).value` vaut **toujours `null`** si rien n'écoute
+  ce provider. Le `?? const []` qui suit masque le problème et l'action est
+  annulée en silence — c'est ce qui empêchait « Payer » de fonctionner.
+- `await ref.read(unStreamProvider.future)` ne sauve pas : sans écouteur, le
+  stream n'est même pas abonné et le `Future` ne se résout jamais.
+
+**Règle :** depuis un callback, on interroge le repository (requête one-shot,
+ex. `AccountRepository.defaultId()`), pas un provider de stream. Les providers
+de stream sont réservés au `build`.
 
 ---
 

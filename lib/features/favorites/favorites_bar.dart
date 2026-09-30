@@ -1,8 +1,10 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -16,6 +18,7 @@ class FavoritesBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final favorites = ref.watch(favoritesProvider).value ?? const [];
     final theme = Theme.of(context);
 
@@ -24,11 +27,13 @@ class FavoritesBar extends ConsumerWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: AppSpacing.xs),
-          child: Text('Dépenses rapides', style: theme.textTheme.titleMedium),
+          child: Text(l.quickExpenses, style: theme.textTheme.titleMedium),
         ),
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
-          height: 44,
+          // A fixed 44 clips the chips as soon as the user scales text up; the
+          // cap keeps the strip from eating the screen at the largest sizes.
+          height: MediaQuery.textScalerOf(context).scale(44).clamp(44.0, 76.0),
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
@@ -38,7 +43,7 @@ class FavoritesBar extends ConsumerWidget {
               ],
               ActionChip(
                 avatar: const Icon(Icons.add, size: 18),
-                label: const Text('Nouveau'),
+                label: Text(l.newFavorite),
                 onPressed: () => _createFavorite(context, ref),
               ),
             ],
@@ -77,31 +82,35 @@ class _FavoriteChip extends ConsumerWidget {
 
   Future<void> _spend(BuildContext context, WidgetRef ref) async {
     var cents = favorite.amountCents;
+    final l = L.of(context);
     if (cents == null) {
       cents = await _askAmount(context, favorite.label);
       if (cents == null) return;
     }
-    await ref.read(favoriteRepositoryProvider).spend(favorite, amountCents: cents);
+    await ref
+        .read(favoriteRepositoryProvider)
+        .spend(favorite, amountCents: cents);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('« ${favorite.label} » ajouté')),
+        SnackBar(content: Text(l.favoriteAdded(favorite.label))),
       );
     }
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Supprimer « ${favorite.label} » ?'),
+        title: Text(l.deleteNamedQuestion(favorite.label)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(l.actionDelete),
           ),
         ],
       ),
@@ -113,6 +122,7 @@ class _FavoriteChip extends ConsumerWidget {
 }
 
 Future<int?> _askAmount(BuildContext context, String label) async {
+  final l = L.of(context);
   final controller = TextEditingController();
   final money = await showDialog<int>(
     context: context,
@@ -123,12 +133,15 @@ Future<int?> _askAmount(BuildContext context, String label) async {
         autofocus: true,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[0-9.,]'))],
-        decoration: const InputDecoration(labelText: 'Montant', suffixText: '€'),
+        decoration: InputDecoration(
+          labelText: l.amount,
+          suffixText: AppCurrency.instance.symbol,
+        ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
+          child: Text(l.actionCancel),
         ),
         FilledButton(
           onPressed: () {
@@ -140,7 +153,7 @@ Future<int?> _askAmount(BuildContext context, String label) async {
               v == null || v <= 0 ? null : Money.fromEuros(v).cents,
             );
           },
-          child: const Text('Ajouter'),
+          child: Text(l.actionAdd),
         ),
       ],
     ),
@@ -150,6 +163,7 @@ Future<int?> _askAmount(BuildContext context, String label) async {
 }
 
 Future<void> _createFavorite(BuildContext context, WidgetRef ref) async {
+  final l = L.of(context);
   final categories = (ref.read(categoriesProvider).value ?? const [])
       .where((c) => c.kind == CategoryKind.expense && c.parentId != null)
       .toList();
@@ -161,7 +175,7 @@ Future<void> _createFavorite(BuildContext context, WidgetRef ref) async {
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: const Text('Nouvelle dépense type'),
+        title: Text(l.newFavoriteTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -171,9 +185,9 @@ Future<void> _createFavorite(BuildContext context, WidgetRef ref) async {
                 controller: labelController,
                 autofocus: true,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Nom',
-                  hintText: 'Café, Ticket resto…',
+                decoration: InputDecoration(
+                  labelText: l.fieldName,
+                  hintText: l.favoriteNameHint,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -185,14 +199,14 @@ Future<void> _createFavorite(BuildContext context, WidgetRef ref) async {
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
                 ],
-                decoration: const InputDecoration(
-                  labelText: 'Montant (facultatif)',
-                  helperText: 'Vide = te demander le montant à chaque fois',
-                  suffixText: '€',
+                decoration: InputDecoration(
+                  labelText: l.amountOptional,
+                  helperText: l.favoriteAmountHelp,
+                  suffixText: AppCurrency.instance.symbol,
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text('Catégorie', style: Theme.of(context).textTheme.labelLarge),
+              Text(l.category, style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
                 spacing: AppSpacing.sm,
@@ -212,11 +226,11 @@ Future<void> _createFavorite(BuildContext context, WidgetRef ref) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Créer'),
+            child: Text(l.actionCreate),
           ),
         ],
       ),
@@ -230,17 +244,21 @@ Future<void> _createFavorite(BuildContext context, WidgetRef ref) async {
       final amount = double.tryParse(
         amountController.text.trim().replaceAll(',', '.'),
       );
-      await ref.read(favoriteRepositoryProvider).add(
-        FavoritesCompanion.insert(
-          label: label,
-          categoryId: Value(categoryId),
-          amountCents: Value(
-            amount == null || amount <= 0 ? null : Money.fromEuros(amount).cents,
-          ),
-          iconKey: Value(category?.iconKey ?? 'tag'),
-          colorValue: Value(category?.colorValue),
-        ),
-      );
+      await ref
+          .read(favoriteRepositoryProvider)
+          .add(
+            FavoritesCompanion.insert(
+              label: label,
+              categoryId: Value(categoryId),
+              amountCents: Value(
+                amount == null || amount <= 0
+                    ? null
+                    : Money.fromEuros(amount).cents,
+              ),
+              iconKey: Value(category?.iconKey ?? 'tag'),
+              colorValue: Value(category?.colorValue),
+            ),
+          );
     }
   }
   labelController.dispose();

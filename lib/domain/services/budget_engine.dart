@@ -27,6 +27,7 @@ class BudgetInputs {
     required this.plannedSavingsRemaining,
     required this.totalDays,
     required this.daysRemaining,
+    this.chargesPaid = Money.zero,
   });
 
   /// Leftover carried from the previous period (may be negative).
@@ -48,6 +49,11 @@ class BudgetInputs {
   /// when known, the estimate otherwise.
   final Money unpaidCharges;
 
+  /// Charges already paid this period. Subtracted from [expenses] to isolate
+  /// day-to-day spending: rent leaving on the 5th is not a "pace", and folding
+  /// it into the daily rate would make every early-month forecast catastrophic.
+  final Money chargesPaid;
+
   /// Savings the user planned to set aside this period and has not yet moved.
   final Money plannedSavingsRemaining;
 
@@ -65,6 +71,7 @@ class BudgetSnapshot {
     required this.totalCommitted,
     required this.health,
     required this.daysRemaining,
+    this.projectedRemaining,
   });
 
   /// The headline: money left to freely spend until the period ends.
@@ -82,6 +89,19 @@ class BudgetSnapshot {
 
   final BudgetHealth health;
   final int daysRemaining;
+
+  /// What [remaining] becomes if day-to-day spending carries on at the pace set
+  /// so far. Null when there is nothing to extrapolate from — the first days of
+  /// a period, or a period already over.
+  final Money? projectedRemaining;
+
+  /// True when the projection lands in the red while the budget is still in the
+  /// black: the one case where the forecast tells the user something the
+  /// headline figure does not.
+  bool get projectionWarns =>
+      projectedRemaining != null &&
+      projectedRemaining!.isNegative &&
+      !remaining.isNegative;
 
   /// Fraction of the available money already committed, clamped to `[0, 1]`.
   /// Drives the progress ring.
@@ -110,7 +130,30 @@ abstract final class BudgetEngine {
       totalCommitted: committed,
       health: _health(remaining, available),
       daysRemaining: input.daysRemaining,
+      projectedRemaining: _project(input, remaining),
     );
+  }
+
+  /// Below this many elapsed days a "pace" is one shopping trip, not a habit.
+  static const int _minDaysForProjection = 3;
+
+  /// `remaining − (daily pace × days left)`.
+  ///
+  /// Only day-to-day spending is extrapolated: charges already paid are one-off
+  /// and charges still due are already deducted from [remaining] at their real
+  /// amount, so neither belongs in a rate.
+  static Money? _project(BudgetInputs input, Money remaining) {
+    final daysElapsed = input.totalDays - input.daysRemaining;
+    if (daysElapsed < _minDaysForProjection || input.daysRemaining <= 0) {
+      return null;
+    }
+
+    final discretionary = input.expenses - input.chargesPaid;
+    // A period whose only outgoings are charges has no pace to speak of.
+    if (!discretionary.isPositive) return remaining;
+
+    final perDay = discretionary.cents / daysElapsed;
+    return remaining - Money((perDay * input.daysRemaining).round());
   }
 
   static BudgetHealth _health(Money remaining, Money available) {

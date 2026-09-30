@@ -1,4 +1,5 @@
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/l10n/app_localizations.dart';
 
 /// A category inserted on first launch. [children] become sub-categories.
 class SeedCategory {
@@ -34,58 +35,70 @@ const _slate = 0xFF6B7280;
 const _lime = 0xFF7CB342;
 const _orange = 0xFFF2762E;
 
-const List<SeedCategory> kDefaultCategories = [
+/// The categories every fresh install starts with, named in [l].
+///
+/// These become ordinary editable rows the moment they are inserted, so they
+/// are translated once, at first launch, and never again — switching the app
+/// language later does not rename a category the user may have edited.
+List<SeedCategory> defaultCategories(L l) => [
   // ── Expenses ──────────────────────────────────────────────────────────
-  SeedCategory('Logement', CategoryKind.expense, 'home', _blue),
+  SeedCategory(l.catHousing, CategoryKind.expense, 'home', _blue),
   SeedCategory(
-    'Alimentation',
+    l.catFood,
     CategoryKind.expense,
     'cart',
     _green,
     children: [
-      SeedCategory('Courses', CategoryKind.expense, 'cart', _green),
-      SeedCategory('Restaurant', CategoryKind.expense, 'restaurant', _green),
-      SeedCategory('Boulangerie', CategoryKind.expense, 'bread', _green),
+      SeedCategory(l.catGroceries, CategoryKind.expense, 'cart', _green),
+      // Own hue, not the parent's: groceries and restaurant are the two
+      // budgets people set side by side, and two greens make one blur arc.
+      SeedCategory(l.catRestaurant, CategoryKind.expense, 'restaurant', _orange),
+      SeedCategory(l.catBakery, CategoryKind.expense, 'bread', _green),
     ],
   ),
   SeedCategory(
-    'Transport',
+    l.catTransport,
     CategoryKind.expense,
     'car',
     _amber,
     children: [
-      SeedCategory('Carburant', CategoryKind.expense, 'fuel', _amber),
-      SeedCategory('Transports en commun', CategoryKind.expense, 'bus', _amber),
-      SeedCategory('Entretien', CategoryKind.expense, 'tools', _amber),
+      SeedCategory(l.catFuel, CategoryKind.expense, 'fuel', _amber),
+      SeedCategory(l.catPublicTransport, CategoryKind.expense, 'bus', _amber),
+      SeedCategory(l.catVehicleUpkeep, CategoryKind.expense, 'tools', _amber),
     ],
   ),
   SeedCategory(
-    'Factures & abonnements',
+    l.catBills,
     CategoryKind.expense,
     'receipt',
     _indigo,
     children: [
-      SeedCategory('Électricité', CategoryKind.expense, 'bolt', _indigo),
-      SeedCategory('Eau', CategoryKind.expense, 'water', _indigo),
-      SeedCategory('Internet', CategoryKind.expense, 'wifi', _indigo),
-      SeedCategory('Téléphone', CategoryKind.expense, 'phone', _indigo),
-      SeedCategory('Assurances', CategoryKind.expense, 'insurance', _indigo),
-      SeedCategory('Abonnements', CategoryKind.expense, 'subscription', _indigo),
+      SeedCategory(l.catElectricity, CategoryKind.expense, 'bolt', _indigo),
+      SeedCategory(l.catWater, CategoryKind.expense, 'water', _indigo),
+      SeedCategory(l.catInternet, CategoryKind.expense, 'wifi', _indigo),
+      SeedCategory(l.catPhone, CategoryKind.expense, 'phone', _indigo),
+      SeedCategory(l.catInsurance, CategoryKind.expense, 'insurance', _indigo),
+      SeedCategory(
+        l.catSubscriptions,
+        CategoryKind.expense,
+        'subscription',
+        _indigo,
+      ),
     ],
   ),
-  SeedCategory('Santé', CategoryKind.expense, 'health', _red),
-  SeedCategory('Loisirs', CategoryKind.expense, 'fun', _purple),
-  SeedCategory('Shopping', CategoryKind.expense, 'shopping', _pink),
-  SeedCategory('Sport', CategoryKind.expense, 'sport', _lime),
-  SeedCategory('Éducation', CategoryKind.expense, 'school', _teal),
-  SeedCategory('Voyages', CategoryKind.expense, 'plane', _orange),
-  SeedCategory('Cadeaux', CategoryKind.expense, 'gift', _pink),
-  SeedCategory('Animaux', CategoryKind.expense, 'pets', _brown),
-  SeedCategory('Impôts', CategoryKind.expense, 'tax', _slate),
-  SeedCategory('Épargne', CategoryKind.expense, 'piggy', _teal),
-  SeedCategory('Crédits & dettes', CategoryKind.expense, 'debt', _slate),
+  SeedCategory(l.catHealth, CategoryKind.expense, 'health', _red),
+  SeedCategory(l.catLeisure, CategoryKind.expense, 'fun', _purple),
+  SeedCategory(l.catShopping, CategoryKind.expense, 'shopping', _pink),
+  SeedCategory(l.catSport, CategoryKind.expense, 'sport', _lime),
+  SeedCategory(l.catEducation, CategoryKind.expense, 'school', _teal),
+  SeedCategory(l.catTravel, CategoryKind.expense, 'plane', _orange),
+  SeedCategory(l.catGifts, CategoryKind.expense, 'gift', _pink),
+  SeedCategory(l.catPets, CategoryKind.expense, 'pets', _brown),
+  SeedCategory(l.catTaxes, CategoryKind.expense, 'tax', _slate),
+  SeedCategory(l.catSavings, CategoryKind.expense, 'piggy', _teal),
+  SeedCategory(l.catDebts, CategoryKind.expense, 'debt', _slate),
   SeedCategory(
-    'Non catégorisé',
+    l.uncategorized,
     CategoryKind.expense,
     'more',
     _slate,
@@ -93,10 +106,10 @@ const List<SeedCategory> kDefaultCategories = [
   ),
 
   // ── Income ───────────────────────────────────────────────────────────
-  SeedCategory('Salaire', CategoryKind.income, 'salary', _green),
-  SeedCategory('Prime', CategoryKind.income, 'bonus', _amber),
-  SeedCategory('Allocations', CategoryKind.income, 'allowance', _blue),
-  SeedCategory('Freelance', CategoryKind.income, 'freelance', _purple),
-  SeedCategory('Remboursement', CategoryKind.income, 'refund', _teal),
-  SeedCategory('Autre revenu', CategoryKind.income, 'trending', _slate),
+  SeedCategory(l.catSalary, CategoryKind.income, 'salary', _green),
+  SeedCategory(l.catBonus, CategoryKind.income, 'bonus', _amber),
+  SeedCategory(l.catBenefits, CategoryKind.income, 'allowance', _blue),
+  SeedCategory(l.catFreelance, CategoryKind.income, 'freelance', _purple),
+  SeedCategory(l.catRefund, CategoryKind.income, 'refund', _teal),
+  SeedCategory(l.catOtherIncome, CategoryKind.income, 'trending', _slate),
 ];

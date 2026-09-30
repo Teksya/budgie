@@ -16,9 +16,21 @@
   "history": "Historique",
   "remainingToSpend": "Reste à vivre",
   "perDay": "{amount} / jour",
-  "@perDay": { "placeholders": { "amount": { "type": "String" } } },
+  "@perDay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "daysLeft": "{count, plural, =1{1 jour restant} other{{count} jours restants}}",
-  "@daysLeft": { "placeholders": { "count": { "type": "int" } } },
+  "@daysLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "healthComfortable": "Confortable",
   "healthTight": "Serré",
   "healthOver": "Dépassé",
@@ -26,7 +38,7 @@
   "recentTransactions": "Dernières transactions",
   "noChargesToPay": "Aucune charge à payer. 🎉",
   "firstExpenseTitle": "Note ta première dépense",
-  "firstExpenseBody": "Appuie sur « Ajouter » en bas dès que tu dépenses quelque chose. Ton reste à vivre se met à jour tout seul.",
+  "firstExpenseBody": "Appuie ici dès que tu dépenses quelque chose. Ton reste à vivre se met à jour tout seul.",
   "onboardWelcomeTitle": "Reprends la main\nsur ton budget",
   "onboardWelcomeSubtitle": "On met tout en place ensemble, ça prend 2 minutes.",
   "onboardHl1Title": "Ton reste à vivre en un coup d'œil",
@@ -101,5 +113,866 @@
   "restore": "Restaurer",
   "startOver": "Repartir de zéro",
   "quickExpenses": "Dépenses rapides",
-  "newFavorite": "Nouveau"
+  "newFavorite": "Nouveau",
+  "frequencyMonthly": "Mensuelle",
+  "frequencyBimonthly": "Tous les 2 mois",
+  "frequencyQuarterly": "Trimestrielle",
+  "frequencyBiannual": "Semestrielle",
+  "frequencyAnnual": "Annuelle",
+  "accountChecking": "Compte courant",
+  "accountSavings": "Épargne",
+  "accountCash": "Espèces",
+  "natureFixedCharge": "Charge fixe",
+  "natureSubscription": "Abonnement",
+  "natureSalary": "Salaire",
+  "natureLoanPayment": "Mensualité de crédit",
+  "statusPending": "À payer",
+  "statusPaid": "Payée",
+  "statusLate": "En retard",
+  "debtCredit": "Crédit",
+  "debtOwed": "Je dois",
+  "debtLent": "On me doit",
+  "debtInstallment": "Paiement en plusieurs fois",
+  "spokenPercent": "{percent} pour cent",
+  "@spokenPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "notifChannelName": "Rappels d'échéance",
+  "notifChannelDescription": "Rappels avant une charge à payer",
+  "notifDueTodayTitle": "Échéance aujourd'hui : {name}",
+  "@notifDueTodayTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDueTodayBody": "{amount} à payer.",
+  "@notifDueTodayBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDueSoonTitle": "Dans 3 jours : {name}",
+  "@notifDueSoonTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDueSoonBody": "{amount} à prévoir le {day}.",
+  "@notifDueSoonBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "notifDailyTitle": "Pense à noter tes dépenses 💸",
+  "notifDailyBody": "2 minutes pour rester à jour sur ton budget.",
+  "shortcutAddExpense": "Ajouter une dépense",
+  "widgetRemainingLabel": "Reste à vivre · {period}",
+  "@widgetRemainingLabel": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetBillDue": "échéance le {date}",
+  "@widgetBillDue": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetNothingDue": "Rien à payer 🎉",
+  "unlockReason": "Déverrouille ton budget",
+  "lockedTitle": "Budget verrouillé",
+  "unlock": "Déverrouiller",
+  "backupUnreadableFile": "Fichier illisible.",
+  "backupWrongPassword": "Mot de passe incorrect ou fichier corrompu.",
+  "backupShareSubject": "Sauvegarde Budget",
+  "uncategorized": "Non catégorisé",
+  "catHousing": "Logement",
+  "catFood": "Alimentation",
+  "catGroceries": "Courses",
+  "catRestaurant": "Restaurant",
+  "catBakery": "Boulangerie",
+  "catTransport": "Transport",
+  "catFuel": "Carburant",
+  "catPublicTransport": "Transports en commun",
+  "catVehicleUpkeep": "Entretien",
+  "catBills": "Factures & abonnements",
+  "catElectricity": "Électricité",
+  "catWater": "Eau",
+  "catInternet": "Internet",
+  "catPhone": "Téléphone",
+  "catInsurance": "Assurances",
+  "catSubscriptions": "Abonnements",
+  "catHealth": "Santé",
+  "catLeisure": "Loisirs",
+  "catShopping": "Shopping",
+  "catSport": "Sport",
+  "catEducation": "Éducation",
+  "catTravel": "Voyages",
+  "catGifts": "Cadeaux",
+  "catPets": "Animaux",
+  "catTaxes": "Impôts",
+  "catSavings": "Épargne",
+  "catDebts": "Crédits & dettes",
+  "catSalary": "Salaire",
+  "catBonus": "Prime",
+  "catBenefits": "Allocations",
+  "catFreelance": "Freelance",
+  "catRefund": "Remboursement",
+  "catOtherIncome": "Autre revenu",
+  "errorWith": "Erreur : {message}",
+  "@errorWith": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "balance": "solde",
+  "deleteNamedQuestion": "Supprimer « {name} » ?",
+  "@deleteNamedQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAccountWarning": "Les transactions de ce compte seront supprimées. Cette action est irréversible.",
+  "cannotDeleteLastAccount": "Impossible de supprimer le dernier compte.",
+  "editAccount": "Modifier le compte",
+  "newAccount": "Nouveau compte",
+  "createAccount": "Créer le compte",
+  "fieldName": "Nom",
+  "accountNameHint": "Compte courant, Livret A…",
+  "initialBalance": "Solde initial",
+  "initialBalanceHelp": "Le solde du compte au moment où tu commences",
+  "fieldType": "Type",
+  "fieldIcon": "Icône",
+  "fieldColour": "Couleur",
+  "actionCreate": "Créer",
+  "amount": "Montant",
+  "amountOptional": "Montant (facultatif)",
+  "favoriteAdded": "« {name} » ajouté",
+  "@favoriteAdded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "newFavoriteTitle": "Nouvelle dépense type",
+  "favoriteNameHint": "Café, Ticket resto…",
+  "favoriteAmountHelp": "Vide = te demander le montant à chaque fois",
+  "savingsGoals": "Objectifs d'épargne",
+  "goal": "Objectif",
+  "goalByDate": "pour le {date}",
+  "@goalByDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "archive": "Archiver",
+  "goalProgressOf": "Progression de l’objectif {name}",
+  "@goalProgressOf": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goalReached": "Atteint 🎉",
+  "goalRemaining": "reste {amount}",
+  "@goalRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalMonthlySetAside": "{amount} / mois réservés",
+  "@goalMonthlySetAside": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "addToGoal": "Ajouter à « {name} »",
+  "@addToGoal": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noGoalsTitle": "Aucun objectif",
+  "noGoalsBody": "Fixe-toi un but (vacances, matelas de sécurité…) et réserve un montant chaque mois.",
+  "debtSettled": "Soldé",
+  "debtRepaymentOf": "Remboursement de {name}",
+  "@debtRepaymentOf": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "debtLeftToCollect": "Reste à récupérer",
+  "debtOutstanding": "Capital restant dû",
+  "debtInstalmentCount": "{paid} / {total} échéances",
+  "@debtInstalmentCount": {
+    "placeholders": {
+      "paid": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "perMonth": "{amount}/mois",
+  "@perMonth": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "debtRepaid": "Remboursé",
+  "debtPayInstalment": "Payer une échéance",
+  "debtPaymentTitle": "Paiement · {name}",
+  "@debtPaymentTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noDebtsTitle": "Aucune dette",
+  "noDebtsBody": "Suis tes crédits, tes paiements en plusieurs fois, ou l'argent qu'on te doit.",
+  "newDebtTitle": "Nouvelle dette / crédit",
+  "debtNameHintLent": "Prêt à un ami…",
+  "debtNameHintOwed": "Crédit auto, canapé 4x…",
+  "debtAmountLent": "Montant prêté",
+  "debtAmountOwed": "Montant total dû",
+  "debtMonthlyPayment": "Mensualité",
+  "debtInstalmentsCount": "Nb échéances",
+  "recurringIncomes": "Revenus récurrents",
+  "recurringCharges": "Charges fixes & abonnements",
+  "recurrenceVariable": "variable",
+  "recurrenceDisabled": "désactivé",
+  "historyAndAverage": "Historique & moyenne",
+  "disable": "Désactiver",
+  "enable": "Activer",
+  "deleteRecurrenceWarning": "La récurrence ne générera plus de nouvelles échéances. Les échéances déjà créées ce mois-ci restent.",
+  "savedChanges": "Modifié",
+  "recurringIncomeAdded": "Revenu récurrent ajouté",
+  "chargeAdded": "Charge ajoutée",
+  "recurringIncome": "Revenu récurrent",
+  "newFixedCharge": "Nouvelle charge fixe",
+  "incomeNameHint": "Salaire, Allocation, Pension…",
+  "chargeNameHint": "Loyer, Électricité, Internet…",
+  "netAmount": "Montant net",
+  "estimatedAmount": "Montant estimé",
+  "variableAmount": "Montant variable",
+  "variableAmountHelp": "Comme l'électricité ou l'eau : tu corriges le montant réel à réception de la facture.",
+  "frequency": "Périodicité",
+  "payDayLabel": "Jour de versement",
+  "dueDayLabel": "Jour d'échéance",
+  "dueDayOn": "{label} : le {day}",
+  "@dueDayOn": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "saveIncome": "Enregistrer le revenu",
+  "saveCharge": "Enregistrer la charge",
+  "fixedCharge": "Charge fixe",
+  "leftToPayThisMonth": "Reste à payer ce mois-ci",
+  "paidOn": "payée le {date}",
+  "@paidOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "payNamed": "Payer « {name} »",
+  "@payNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "actualAmount": "Montant réel",
+  "recurringChargesShort": "Charges récurrentes",
+  "envelopes": "Enveloppes",
+  "envelope": "Enveloppe",
+  "envelopesIntro": "Fixe un plafond mensuel par catégorie (ex. Courses : 300 €) pour suivre tes dépenses et être alerté avant de déraper.",
+  "envelopeOf": "Enveloppe {name}",
+  "@envelopeOf": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "envelopeOverBy": "Dépassé de {amount}",
+  "@envelopeOverBy": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "envelopeLeft": "Reste {amount}",
+  "@envelopeLeft": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteEnvelopeQuestion": "Supprimer l'enveloppe « {name} » ?",
+  "@deleteEnvelopeQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noChargesTitle": "Aucune charge fixe",
+  "noChargesBody": "Ajoute ton loyer, l'électricité, l'eau, internet… Elles apparaîtront chaque mois automatiquement.",
+  "settingsNotifications": "Notifications",
+  "accountsSub": "Courant, épargne, espèces",
+  "recurringSub": "Loyer, abonnements, salaire…",
+  "categoriesSub": "Créer, renommer, couleur et icône",
+  "debtsSub": "Crédits, paiements en plusieurs fois",
+  "dueRemindersSub": "Un rappel 3 jours avant et le jour même de chaque charge",
+  "notificationsDenied": "Autorise les notifications dans les réglages Android.",
+  "dailyReminderSub": "Chaque soir à 20 h, « pense à noter tes dépenses »",
+  "biometricLockSub": "Empreinte ou code de l'appareil à l'ouverture",
+  "backupNeverSub": "Fichier chiffré par mot de passe · jamais sauvegardé",
+  "backupLastSub": "Fichier chiffré · dernière sauvegarde {when}",
+  "@backupLastSub": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "restoreSub": "Remplace les données actuelles",
+  "startOverSub": "Efface tout et relance la configuration",
+  "agoToday": "aujourd'hui",
+  "agoYesterday": "hier",
+  "agoDays": "il y a {days} jours",
+  "@agoDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "resetAllTitle": "Tout effacer ?",
+  "resetAllBody": "Toutes tes données seront supprimées et tu recommenceras la configuration de départ. Cette action est irréversible.",
+  "backupPasswordTitle": "Mot de passe de la sauvegarde",
+  "backupFailed": "Échec de la sauvegarde : {message}",
+  "@backupFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "restorePasswordTitle": "Mot de passe du fichier",
+  "restoreTitle": "Restaurer ?",
+  "restoreBody": "Toutes les données actuelles seront remplacées.",
+  "restoreDone": "Restauration réussie. Redémarre l'app.",
+  "password": "Mot de passe",
+  "pickCurrency": "Choisis ta devise",
+  "periodStartsOn": "Le mois budgétaire commence le",
+  "periodStartFirst": "le 1er de chaque mois",
+  "periodStartNth": "le {day} de chaque mois (utile si ton salaire tombe en fin de mois)",
+  "@periodStartNth": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "dayOrdinal": "le {day}",
+  "@dayOrdinal": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "actionRemove": "Retirer",
+  "none": "Aucun",
+  "chargeRent": "Loyer",
+  "debitDayHelp": "Jour du prélèvement",
+  "debitedOn": "Prélevé le {day}",
+  "@debitedOn": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "debitedOnEveryMonth": "Prélevé le {day} de chaque mois",
+  "@debitedOnEveryMonth": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "monthlyAmount": "Montant mensuel",
+  "monthlyCap": "Plafond mensuel",
+  "previousDay": "Jour précédent",
+  "nextDay": "Jour suivant",
+  "periodStartFirstShort": "le 1er",
+  "periodStartFirstShortCap": "Le 1er",
+  "dayOrdinalCap": "Le {day}",
+  "@dayOrdinalCap": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardStartDayTitle": "Ton mois commence quand ?",
+  "onboardStartDayBody": "Choisis le jour où débute ton budget. Le 1er par défaut, ou le jour de ta paie si ton salaire tombe en fin de mois.",
+  "onboardSalaryTitle": "Quel est ton revenu mensuel ?",
+  "onboardSalaryBody": "Ton salaire net habituel. Il sera pré-rempli chaque mois — tu pourras l'ajuster à tout moment. Tu peux aussi laisser vide.",
+  "onboardChargesTitle": "Tes charges fixes",
+  "onboardChargesBody": "Coche celles que tu as, indique le montant et le jour du prélèvement. Elles reviendront automatiquement chaque mois.",
+  "onboardSubsTitle": "Tes abonnements",
+  "onboardSubsBody": "Touche ceux auxquels tu es abonné. On te demandera la date de prélèvement et le montant.",
+  "onboardSubsCount": "{count, plural, =1{1 abonnement · {total} par mois} other{{count} abonnements · {total} par mois}}",
+  "@onboardSubsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardEnvelopesTitle": "Tes budgets du mois",
+  "onboardEnvelopesBody": "Fixe-toi un plafond sur ce qui dérape facilement. Tout est facultatif — tu pourras en ajouter plus tard.",
+  "onboardAnotherBudget": "Un autre budget ?",
+  "onboardOptionsTitle": "Presque fini !",
+  "onboardOptionsBody": "Deux options pour t'aider au quotidien. Tu peux les changer plus tard dans les réglages.",
+  "onboardRemindersSub": "3 jours avant et le jour de chaque charge",
+  "onboardBiometricSub": "Empreinte ou code à l'ouverture",
+  "ringCharges": "Charges",
+  "ringOther": "Autre",
+  "ringFree": "Libre",
+  "onboardRecapTitle": "Voilà ton mois",
+  "onboardRecapWithSalary": "Sur {income} de revenu, voilà comment ton budget est réparti.",
+  "@onboardRecapWithSalary": {
+    "placeholders": {
+      "income": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardRecapNoSalary": "Voilà comment ton budget est réparti. Ajoute ton revenu quand tu veux pour voir ce qu'il te reste.",
+  "onboardRecapSemantics": "Répartition de ton budget : {breakdown}.",
+  "@onboardRecapSemantics": {
+    "placeholders": {
+      "breakdown": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardYouWillHaveLeft": "Il te restera",
+  "onboardCommitted": "Engagé",
+  "onboardOverBudget": "Tes charges et budgets dépassent ton revenu de {amount}. Ce n'est pas grave : ajuste-les quand tu veux depuis l'onglet Budgets.",
+  "@onboardOverBudget": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ringOthers": "Autres",
+  "previousMonth": "Mois précédent",
+  "nextMonth": "Mois suivant",
+  "noTransactionsThatMonth": "Aucune transaction ce mois-là.",
+  "carriedToNextMonth": "reporté sur le mois suivant",
+  "carryInLabel": "Report du mois précédent",
+  "carryCorrected": "corrigé",
+  "incomeReceived": "Revenus perçus",
+  "incomePlanned": "Revenus prévus",
+  "expenses": "Dépenses",
+  "unpaidCharges": "Charges non payées ({count})",
+  "@unpaidCharges": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fixCarry": "Corriger le report",
+  "fixCarryBody": "Force le report entrant de ce mois. Les mois suivants sont recalculés en conséquence.",
+  "carryShort": "Report",
+  "restoreAuto": "Rétablir l'auto",
+  "actionApply": "Appliquer",
+  "deleteTransactionQuestion": "Supprimer cette transaction ?",
+  "deleteTransactionBody": "Le solde de ce mois et le report des mois suivants seront recalculés.",
+  "noDataTitle": "Aucune donnée",
+  "noDataBody": "Les mois passés apparaîtront ici au fil du temps.",
+  "statsTitle": "Statistiques",
+  "noSpendingThisMonth": "Aucune dépense ce mois-ci.",
+  "donutSemantics": "Répartition des dépenses par catégorie. Total {total}.",
+  "@donutSemantics": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "noDataYet": "Pas encore de données.",
+  "barsMonthSummary": "{month} : revenus {income}, dépenses {expense}",
+  "@barsMonthSummary": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "income": {
+        "type": "String"
+      },
+      "expense": {
+        "type": "String"
+      }
+    }
+  },
+  "barsSummary": "Revenus et dépenses sur {count} mois. {months}.",
+  "@barsSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "months": {
+        "type": "String"
+      }
+    }
+  },
+  "deficit": "Déficit",
+  "saved": "Épargné",
+  "currentEstimate": "Estimé actuel",
+  "actualAverage": "Moyenne réelle",
+  "noPaidBillYet": "Pas encore de facture payée pour cette charge. L'historique apparaîtra ici au fil des mois.",
+  "estimateDriftTitle": "Ton estimé s'écarte de la réalité",
+  "estimateDriftBelow": "La moyenne réelle est {average}, sous l'estimé de {gap}.",
+  "@estimateDriftBelow": {
+    "placeholders": {
+      "average": {
+        "type": "String"
+      },
+      "gap": {
+        "type": "String"
+      }
+    }
+  },
+  "estimateDriftAbove": "La moyenne réelle est {average}, au-dessus de l'estimé de {gap}.",
+  "@estimateDriftAbove": {
+    "placeholders": {
+      "average": {
+        "type": "String"
+      },
+      "gap": {
+        "type": "String"
+      }
+    }
+  },
+  "retuneEstimate": "Réajuster l'estimé à {amount}",
+  "@retuneEstimate": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "searchHint": "Rechercher…",
+  "clearSearch": "Effacer la recherche",
+  "filterAll": "Tout",
+  "moveLabel": "Basculement",
+  "betweenAccounts": "entre comptes",
+  "plannedTapToReceive": "prévu — appuie pour encaisser",
+  "noResults": "Aucun résultat",
+  "noTransactionsThisMonth": "Aucune transaction ce mois-ci",
+  "noTransactionsBody": "Appuie sur + pour ajouter ta première dépense ou ton salaire.",
+  "systemCategory": "catégorie système",
+  "deleteCategoryWarning": "Les transactions de cette catégorie deviendront « Non catégorisé ». Les sous-catégories seront aussi supprimées.",
+  "editCategory": "Modifier la catégorie",
+  "newCategory": "Nouvelle catégorie",
+  "createCategory": "Créer la catégorie",
+  "newGoal": "Nouvel objectif",
+  "goalNameHint": "Vacances, matelas de sécurité…",
+  "goalTarget": "Montant à atteindre",
+  "goalMonthly": "À réserver chaque mois (facultatif)",
+  "goalMonthlyHelp": "Déduit du reste à vivre pour te forcer à épargner",
+  "createGoal": "Créer l'objectif",
+  "envelopeRollover": "Reporter le non-dépensé",
+  "envelopeRolloverSub": "Ce qui n'est pas dépensé s'ajoute au plafond du mois suivant.",
+  "backupNudgeTitle": "Pense à sauvegarder",
+  "backupNudgeNever": "Tes données n'existent que sur ce téléphone. Une sauvegarde chiffrée te met à l’abri.",
+  "backupNudgeDays": "Ta dernière sauvegarde date de {days} jours.",
+  "@backupNudgeDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "actionLater": "Plus tard",
+  "closingBalance": "Solde de fin de mois",
+  "goalTargetDate": "Date cible (facultatif)",
+  "clearDate": "Effacer la date",
+  "total": "Total",
+  "actionOk": "OK",
+  "actionUndo": "Annuler",
+  "transactionDeleted": "Transaction supprimée",
+  "duplicateToday": "Dupliquer à aujourd'hui",
+  "duplicated": "Dupliquée",
+  "projectedEndTitle": "À ce rythme",
+  "projectedEndBody": "tu finis le mois à {amount}",
+  "@projectedEndBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "vsLastMonthLess": "{percent} % de moins que le mois dernier",
+  "@vsLastMonthLess": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "vsLastMonthMore": "{percent} % de plus que le mois dernier",
+  "@vsLastMonthMore": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "vsLastMonthSame": "Au même rythme que le mois dernier",
+  "noRecurrencesTitle": "Aucune récurrence",
+  "noRecurrencesBody": "Ajoute ce qui revient chaque mois : loyer, abonnements, salaire. Tu n'auras plus à y penser.",
+  "exportMonth": "Exporter ce mois (CSV)",
+  "exportSubject": "Budgie — {period}",
+  "@exportSubject": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "exportEmpty": "Rien à exporter pour ce mois.",
+  "csvDate": "Date",
+  "csvType": "Type",
+  "csvCategory": "Catégorie",
+  "csvAccount": "Compte",
+  "csvNote": "Note",
+  "csvAmount": "Montant",
+  "suggestRecurrenceTitle": "« {name} » revient chaque mois",
+  "@suggestRecurrenceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "suggestRecurrenceBody": "Payé {count} mois de suite, environ {amount} vers le {day}. En faire un abonnement le fera apparaître tout seul.",
+  "@suggestRecurrenceBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "suggestMakeItRecurring": "En faire un abonnement",
+  "suggestEnvelopeTitle": "Un plafond sur « {name} » ?",
+  "@suggestEnvelopeTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "suggestEnvelopeBody": "Tu y dépenses {amount} par mois en moyenne sur {count} mois. Un plafond à {limit} te préviendrait avant de déraper.",
+  "@suggestEnvelopeBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "suggestSetTheCap": "Créer l'enveloppe",
+  "suggestNoThanks": "Non merci",
+  "recapTitle": "Ton mois",
+  "recapSaved": "Épargné",
+  "recapOverspent": "Dépassé de",
+  "recapSemantics": "Revenus {income}, dépenses {expenses}.",
+  "@recapSemantics": {
+    "placeholders": {
+      "income": {
+        "type": "String"
+      },
+      "expenses": {
+        "type": "String"
+      }
+    }
+  },
+  "recapAdviceSaved": "{amount} de plus que ce que tu as dépensé. C'est autant de gagné pour le mois prochain.",
+  "@recapAdviceSaved": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "recapAdviceOver": "Tu as dépensé plus que tu n'as reçu ce mois-ci. Le solde est reporté sur le mois suivant.",
+  "recapWhereItWent": "Où c'est parti",
+  "recapShare": "{amount} · {percent} %",
+  "@recapShare": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "recapSeeMonth": "Voir le récap du mois",
+  "notifRecapTitle": "Ton mois est bouclé 📊",
+  "notifRecapBody": "Ouvre Budgie pour voir où est parti ton argent.",
+  "accountCurrency": "Devise du compte",
+  "accountCurrencySameAsApp": "Comme l'app ({code})",
+  "@accountCurrencySameAsApp": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRates": "Taux de change",
+  "settingsRatesSub": "Pour tes comptes en devise étrangère",
+  "ratesIntro": "Budgie ne va jamais sur internet : c'est toi qui donnes les taux, et tu les corriges quand tu veux. Ils ne servent qu'à convertir au moment de la saisie — tes mois passés ne bougent pas.",
+  "ratesOneUnitEquals": "1 {code} =",
+  "@ratesOneUnitEquals": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "ratesNone": "Aucun taux. Ajoute-en un quand tu crées un compte en devise étrangère.",
+  "ratesAdd": "Ajouter un taux",
+  "ratesMissing": "Aucun taux pour {code} — le montant sera pris tel quel.",
+  "@ratesMissing": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "ratesConverted": "≈ {amount} une fois converti",
+  "@ratesConverted": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRangeMonths": "{count, plural, =1{1 mois} other{{count} mois}}",
+  "@statsRangeMonths": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsTrend": "Évolution",
+  "statsByCategory": "Par catégorie",
+  "statsRepeatOffenders": "Ce qui revient le plus",
+  "statsAveragePerMonth": "{amount} par mois en moyenne",
+  "@statsAveragePerMonth": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "statsDeltaPercent": "{percent} %",
+  "@statsDeltaPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "statsShareOfTotal": "{percent} pour cent du total",
+  "@statsShareOfTotal": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "statsTimes": "{count, plural, =1{1 fois} other{{count} fois}}",
+  "@statsTimes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

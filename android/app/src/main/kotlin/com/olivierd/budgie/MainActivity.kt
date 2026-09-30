@@ -1,4 +1,4 @@
-package com.olivier.budget
+package com.olivierd.budgie
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

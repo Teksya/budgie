@@ -50,6 +50,19 @@ class AccountRepository {
     });
   }
 
+  /// The account to debit when the user is not asked to choose one. A one-shot
+  /// query on purpose: from a button callback there is nothing watching
+  /// `accountsProvider`, and Riverpod 3 leaves an unwatched stream provider
+  /// stuck in `loading` forever.
+  Future<int?> defaultId() async {
+    final row = await ((_db.select(_db.accounts)
+              ..where((a) => a.archived.equals(false))
+              ..orderBy([(a) => OrderingTerm.asc(a.sortOrder)]))
+            ..limit(1))
+        .getSingleOrNull();
+    return row?.id;
+  }
+
   Future<int> add(AccountsCompanion entry) =>
       _db.into(_db.accounts).insert(entry);
 

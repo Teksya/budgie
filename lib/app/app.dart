@@ -29,7 +29,7 @@ class BudgetApp extends ConsumerWidget {
         final dark = useDynamic ? darkDynamic?.harmonized() : null;
 
         return MaterialApp.router(
-          title: 'Budget',
+          title: 'Budgie',
           debugShowCheckedModeBanner: false,
           routerConfig: appRouter,
           builder: (context, child) => _Gate(
@@ -69,14 +69,17 @@ class _Gate extends ConsumerWidget {
       duration: const Duration(milliseconds: 350),
       child: onboarded
           ? child
-          // The welcome flow is shown from MaterialApp.builder, above the
-          // router's Navigator — so it has no Overlay of its own. Widgets like
-          // Slider, Tooltip and text-selection need one, so we provide it here.
-          : Overlay(
+          // The welcome flow is shown from MaterialApp.builder, *above* the
+          // router's Navigator — so it inherits neither Navigator nor Overlay.
+          // A bare Overlay was enough for Slider and Tooltip, but date pickers
+          // and bottom sheets push routes: they need a Navigator, which brings
+          // its own Overlay along.
+          : Navigator(
               key: const ValueKey('onboarding'),
-              initialEntries: [
-                OverlayEntry(builder: (_) => const OnboardingFlow()),
-              ],
+              onGenerateRoute: (settings) => MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => const OnboardingFlow(),
+              ),
             ),
     );
   }

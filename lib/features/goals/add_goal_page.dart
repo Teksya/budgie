@@ -1,7 +1,9 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -9,7 +11,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-const _goalIcons = ['target', 'plane', 'home', 'car', 'gift', 'piggy', 'health'];
+const _goalIcons = [
+  'target',
+  'plane',
+  'home',
+  'car',
+  'gift',
+  'piggy',
+  'health',
+];
 
 class AddGoalPage extends ConsumerStatefulWidget {
   const AddGoalPage({super.key});
@@ -45,24 +55,27 @@ class _AddGoalPageState extends ConsumerState<AddGoalPage> {
   Future<void> _save() async {
     if (!_valid) return;
     setState(() => _saving = true);
-    await ref.read(goalRepositoryProvider).add(
-      SavingsGoalsCompanion.insert(
-        name: _name.text.trim(),
-        targetCents: _parse(_target)!.cents,
-        targetDate: Value(_targetDate),
-        monthlyPlannedCents: Value(_parse(_monthly)?.cents ?? 0),
-        iconKey: Value(_iconKey),
-      ),
-    );
+    await ref
+        .read(goalRepositoryProvider)
+        .add(
+          SavingsGoalsCompanion.insert(
+            name: _name.text.trim(),
+            targetCents: _parse(_target)!.cents,
+            targetDate: Value(_targetDate),
+            monthlyPlannedCents: Value(_parse(_monthly)?.cents ?? 0),
+            iconKey: Value(_iconKey),
+          ),
+        );
     if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nouvel objectif')),
+      appBar: AppBar(title: Text(l.newGoal)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -75,9 +88,9 @@ class _AddGoalPageState extends ConsumerState<AddGoalPage> {
             controller: _name,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Nom',
-              hintText: 'Vacances, matelas de sécurité…',
+            decoration: InputDecoration(
+              labelText: l.fieldName,
+              hintText: l.goalNameHint,
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -88,9 +101,9 @@ class _AddGoalPageState extends ConsumerState<AddGoalPage> {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
             ],
-            decoration: const InputDecoration(
-              labelText: 'Montant à atteindre',
-              suffixText: '€',
+            decoration: InputDecoration(
+              labelText: l.goalTarget,
+              suffixText: AppCurrency.instance.symbol,
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -101,10 +114,10 @@ class _AddGoalPageState extends ConsumerState<AddGoalPage> {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
             ],
-            decoration: const InputDecoration(
-              labelText: 'À réserver chaque mois (facultatif)',
-              helperText: 'Déduit du reste à vivre pour te forcer à épargner',
-              suffixText: '€',
+            decoration: InputDecoration(
+              labelText: l.goalMonthly,
+              helperText: l.goalMonthlyHelp,
+              suffixText: AppCurrency.instance.symbol,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -114,7 +127,7 @@ class _AddGoalPageState extends ConsumerState<AddGoalPage> {
             onClear: () => setState(() => _targetDate = null),
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('Icône', style: theme.textTheme.labelLarge),
+          Text(l.fieldIcon, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -150,7 +163,7 @@ class _AddGoalPageState extends ConsumerState<AddGoalPage> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text("Créer l'objectif"),
+                : Text(l.createGoal),
           ),
         ],
       ),
@@ -184,11 +197,12 @@ class _DateField extends StatelessWidget {
       },
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: 'Date cible (facultatif)',
+          labelText: L.of(context).goalTargetDate,
           suffixIcon: date == null
               ? const Icon(Icons.calendar_today, size: 18)
               : IconButton(
                   icon: const Icon(Icons.clear, size: 18),
+                  tooltip: L.of(context).clearDate,
                   onPressed: onClear,
                 ),
         ),

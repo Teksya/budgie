@@ -1,16 +1,20 @@
 import 'package:budget/app/providers.dart';
+import 'package:budget/app/theme/app_theme.dart';
 import 'package:budget/app/theme/motion.dart';
 import 'package:budget/app/theme/shapes.dart';
 import 'package:budget/core/date_x.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/data/repositories/stats_repository.dart';
 import 'package:budget/data/repositories/transaction_repository.dart';
 import 'package:budget/domain/services/budget_engine.dart';
 import 'package:budget/features/favorites/favorites_bar.dart';
 import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:budget/shared/widgets/amount_text.dart';
+import 'package:budget/shared/widgets/backup_reminder_card.dart';
+import 'package:budget/shared/widgets/budget_ring.dart';
 import 'package:budget/shared/widgets/expressive_fab.dart';
 import 'package:budget/shared/widgets/fade_slide_in.dart';
 import 'package:budget/shared/widgets/skeleton.dart';
@@ -27,6 +31,7 @@ class DashboardPage extends ConsumerWidget {
     final snapshot = ref.watch(snapshotProvider);
     final charges = ref.watch(chargesProvider);
     final txns = ref.watch(transactionsProvider);
+    final breakdown = ref.watch(categoryBreakdownProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -63,11 +68,22 @@ class DashboardPage extends ConsumerWidget {
               child: snapshot.when(
                 loading: () => const _RemainingSkeleton(),
                 error: (e, _) => _ErrorCard(message: '$e'),
-                data: (s) =>
-                    _RemainingCard(snapshot: s, periodLabel: range.label),
+                data: (s) => _RemainingCard(
+                  snapshot: s,
+                  periodLabel: range.label,
+                  slices: breakdown.value ?? const [],
+                ),
               ),
             ),
+            const FadeSlideIn(
+              delay: Duration(milliseconds: 30),
+              child: _SpendingTrend(),
+            ),
             const SizedBox(height: AppSpacing.lg),
+            const FadeSlideIn(
+              delay: Duration(milliseconds: 40),
+              child: BackupReminderCard(),
+            ),
             const FadeSlideIn(
               delay: Duration(milliseconds: 55),
               child: FavoritesBar(),
@@ -90,10 +106,49 @@ class DashboardPage extends ConsumerWidget {
 }
 
 class _RemainingCard extends StatelessWidget {
-  const _RemainingCard({required this.snapshot, required this.periodLabel});
+  const _RemainingCard({
+    required this.snapshot,
+    required this.periodLabel,
+    required this.slices,
+  });
 
   final BudgetSnapshot snapshot;
   final String periodLabel;
+  final List<CategorySlice> slices;
+
+  /// Splits the period's money into arcs: one per category actually spent on,
+  /// one for what is committed but not yet spent (unpaid charges, planned
+  /// savings), and one for what is still free to spend.
+  List<RingSegment> _segments(L l, ColorScheme scheme, Color onContainer) {
+    final spent = slices.fold(Money.zero, (a, s) => a + s.total);
+    // Beyond four arcs the ring turns into confetti — fold the tail into one.
+    final top = slices.take(4);
+    final others = slices.skip(4).fold(Money.zero, (a, s) => a + s.total);
+
+    return [
+      for (final s in top)
+        RingSegment(
+          label: s.categoryName,
+          color: Color(s.colorValue),
+          amount: s.total.euros,
+        ),
+      RingSegment(
+        label: l.ringOthers,
+        color: onContainer.withValues(alpha: 0.25),
+        amount: others.euros,
+      ),
+      RingSegment(
+        label: l.statusPending,
+        color: onContainer.withValues(alpha: 0.5),
+        amount: (snapshot.totalCommitted - spent).euros,
+      ),
+      RingSegment(
+        label: l.ringFree,
+        color: snapshot.health.color(scheme),
+        amount: snapshot.remaining.euros,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +156,7 @@ class _RemainingCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final container = snapshot.health.container(scheme);
     final onContainer = snapshot.health.onContainer(scheme);
+    final segments = _segments(L.of(context), scheme, onContainer);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -121,39 +177,53 @@ class _RemainingCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          // One clean spoken sentence for screen readers, instead of the
-          // animating digits being read out mid-count.
-          Semantics(
-            container: true,
-            label: '${L.of(context).remainingToSpend} : '
-                '${snapshot.remaining.format()}, '
-                '${_healthWord(context, snapshot.health)}',
-            child: ExcludeSemantics(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          Center(
+            child: BudgetRing(
+              segments: segments,
+              emptyColor: onContainer.withValues(alpha: 0.15),
+              // The arcs are pixels; this sentence is the whole chart for a
+              // screen reader, so it carries the figure *and* the breakdown.
+              semanticsLabel:
+                  '${L.of(context).remainingToSpend} : '
+                  '${snapshot.remaining.format()}, '
+                  '${_healthWord(context, snapshot.health)}. '
+                  '${L.of(context).daysLeft(snapshot.daysRemaining)}, '
+                  '${L.of(context).perDay(snapshot.perDay.format())}. '
+                  '${_ringSummary(segments)}',
+              center: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     L.of(context).remainingToSpend,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: onContainer),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: onContainer.withValues(alpha: 0.8),
+                    ),
                   ),
                   // scaleDown keeps the hero figure on one line even at large
-                  // system font sizes, instead of overflowing.
+                  // system font sizes, instead of overflowing the ring's hole.
                   FittedBox(
                     fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
                     child: TweenAnimationBuilder<double>(
                       duration: AppMotion.emphasized,
                       curve: AppMotion.standardCurve,
                       tween: Tween(end: snapshot.remaining.euros),
                       builder: (context, value, _) => Text(
-                        Money.fromEuros(value).format(),
+                        Money.fromEuros(value).formatRounded(),
                         maxLines: 1,
-                        style: theme.textTheme.displayMedium?.copyWith(
+                        style: theme.textTheme.headlineLarge?.copyWith(
                           color: onContainer,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    L.of(context).perDay(snapshot.perDay.format()),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: onContainer.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -161,37 +231,124 @@ class _RemainingCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.full),
-            child: LinearProgressIndicator(
-              value: snapshot.committedRatio,
-              minHeight: 10,
-              backgroundColor: onContainer.withValues(alpha: 0.15),
-              color: onContainer,
+          Align(child: RingLegend(segments: segments)),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            child: Text(
+              L.of(context).daysLeft(snapshot.daysRemaining),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: onContainer.withValues(alpha: 0.8),
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                L.of(context).daysLeft(snapshot.daysRemaining),
-                style: theme.textTheme.bodySmall?.copyWith(color: onContainer),
-              ),
-              Text(
-                L.of(context).perDay(snapshot.perDay.format()),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: onContainer,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+          if (snapshot.projectedRemaining != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _Projection(snapshot: snapshot, onContainer: onContainer),
+          ],
         ],
       ),
     );
   }
 }
+
+/// "At this rate you finish the month at X" — the one number the headline
+/// cannot show, because the headline is a balance and this is a trajectory.
+class _Projection extends StatelessWidget {
+  const _Projection({required this.snapshot, required this.onContainer});
+
+  final BudgetSnapshot snapshot;
+  final Color onContainer;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+    final projected = snapshot.projectedRemaining!;
+    // Only tint it when it disagrees with the headline; otherwise it is just
+    // one more figure and should read as quietly as the rest of the card.
+    final colour = snapshot.projectionWarns
+        ? theme.colorScheme.error
+        : onContainer.withValues(alpha: 0.8);
+
+    return Align(
+      child: MergeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              snapshot.projectionWarns
+                  ? Icons.trending_down
+                  : Icons.trending_flat,
+              size: 16,
+              color: colour,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                '${l.projectedEndTitle}, '
+                '${l.projectedEndBody(projected.formatRounded())}',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colour,
+                  fontWeight: snapshot.projectionWarns ? FontWeight.w700 : null,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "12 % less than last month", measured over the same number of elapsed days
+/// so the comparison is fair mid-month.
+class _SpendingTrend extends ConsumerWidget {
+  const _SpendingTrend();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final comparison = ref.watch(spendingComparisonProvider).value;
+    final ratio = comparison?.ratio;
+    if (ratio == null) return const SizedBox.shrink();
+
+    final l = L.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final percent = (ratio.abs() * 100).round();
+
+    // Under 5 % is noise, not a trend.
+    final (label, icon, colour) = percent < 5
+        ? (l.vsLastMonthSame, Icons.trending_flat, scheme.onSurfaceVariant)
+        : ratio < 0
+        ? (l.vsLastMonthLess(percent), Icons.trending_down, scheme.healthy)
+        : (l.vsLastMonthMore(percent), Icons.trending_up, scheme.caution);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: MergeSemantics(
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: colour),
+            const SizedBox(width: AppSpacing.xs),
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(color: colour),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Spells the arcs out for a screen reader — "Courses 120 €, Libre 430 €".
+String _ringSummary(List<RingSegment> segments) => segments
+    .where((s) => s.amount > 0)
+    .map((s) => '${s.label} ${Money.fromEuros(s.amount).formatRounded()}')
+    .join(', ');
 
 String _healthWord(BuildContext context, BudgetHealth health) {
   final l = L.of(context);
@@ -253,10 +410,9 @@ class _UpcomingCharges extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Only unpaid, soonest first, top 3.
-    final pending = charges
-        .where((c) => c.status != InstanceStatus.paid)
-        .toList()
-      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    final pending =
+        charges.where((c) => c.status != InstanceStatus.paid).toList()
+          ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
     final top = pending.take(3).toList();
 
     return _Section(
@@ -273,10 +429,13 @@ class _UpcomingCharges extends StatelessWidget {
                     ListTile(
                       leading: const Icon(Icons.event_outlined),
                       title: Text(c.label),
-                      subtitle: Text('échéance le ${c.dueDate.shortLabel}'),
+                      subtitle: Text(
+                        L.of(context).widgetBillDue(c.dueDate.shortLabel),
+                      ),
                       trailing: Text(
-                        Money(c.actualAmountCents ?? c.estimatedAmountCents)
-                            .format(),
+                        Money(
+                          c.actualAmountCents ?? c.estimatedAmountCents,
+                        ).format(),
                         style: theme.textTheme.titleMedium,
                       ),
                     ),
@@ -304,8 +463,7 @@ class _RecentTransactions extends StatelessWidget {
               child: Column(
                 children: [
                   for (final v in recent) ...[
-                    if (v != recent.first)
-                      const Divider(height: 1, indent: 64),
+                    if (v != recent.first) const Divider(height: 1, indent: 64),
                     _MiniTxnTile(view: v),
                   ],
                 ],
@@ -325,37 +483,46 @@ class _FirstExpenseHint extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Card(
       color: scheme.surfaceContainerHigh,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: scheme.primaryContainer,
-              foregroundColor: scheme.onPrimaryContainer,
-              child: const Icon(Icons.add),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    L.of(context).firstExpenseTitle,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    L.of(context).firstExpenseBody,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+      // Clips the ripple to the card's own shape, so the tap target does not
+      // have to know the corner radius.
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // The card reads like a call to action, so it should behave like one
+        // rather than only pointing at the button below it.
+        onTap: () => context.push('/add'),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: scheme.primaryContainer,
+                foregroundColor: scheme.onPrimaryContainer,
+                child: const Icon(Icons.add),
               ),
-            ),
-          ],
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      L.of(context).firstExpenseTitle,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      L.of(context).firstExpenseBody,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+            ],
+          ),
         ),
       ),
     );
@@ -373,8 +540,9 @@ class _MiniTxnTile extends StatelessWidget {
     final txn = view.txn;
     final category = view.category;
     final isIncome = txn.type == TxnType.income;
-    final color =
-        category != null ? Color(category.colorValue) : scheme.primary;
+    final color = category != null
+        ? Color(category.colorValue)
+        : scheme.primary;
 
     return ListTile(
       leading: CircleAvatar(
@@ -382,7 +550,7 @@ class _MiniTxnTile extends StatelessWidget {
         foregroundColor: color,
         child: Icon(iconFor(category?.iconKey), size: 20),
       ),
-      title: Text(category?.name ?? 'Non catégorisé'),
+      title: Text(category?.name ?? L.of(context).uncategorized),
       subtitle: Text(txn.date.shortLabel),
       trailing: AmountText(
         isIncome ? Money(txn.amountCents) : -Money(txn.amountCents),

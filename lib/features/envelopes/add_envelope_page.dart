@@ -1,7 +1,9 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,6 +61,7 @@ class _AddEnvelopePageState extends ConsumerState<AddEnvelopePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     // Parent expense categories are the usual envelope targets.
     final categories = (ref.watch(categoriesProvider).value ?? const [])
@@ -66,7 +69,7 @@ class _AddEnvelopePageState extends ConsumerState<AddEnvelopePage> {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Enveloppe')),
+      appBar: AppBar(title: Text(l.envelope)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -75,7 +78,7 @@ class _AddEnvelopePageState extends ConsumerState<AddEnvelopePage> {
           AppSpacing.xl * 2,
         ),
         children: [
-          Text('Catégorie', style: theme.textTheme.labelLarge),
+          Text(l.category, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -101,18 +104,18 @@ class _AddEnvelopePageState extends ConsumerState<AddEnvelopePage> {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
             ],
-            decoration: const InputDecoration(
-              labelText: 'Plafond mensuel',
-              suffixText: '€',
+            decoration: InputDecoration(
+              labelText: l.monthlyCap,
+              suffixText: AppCurrency.instance.symbol,
             ),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: AppSpacing.sm),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Reporter le non-dépensé'),
+            title: Text(l.envelopeRollover),
             subtitle: Text(
-              "Ce qui n'est pas dépensé s'ajoute au plafond du mois suivant.",
+              l.envelopeRolloverSub,
               style: theme.textTheme.bodySmall,
             ),
             value: _rollover,
@@ -130,7 +133,7 @@ class _AddEnvelopePageState extends ConsumerState<AddEnvelopePage> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Enregistrer'),
+                : Text(l.actionSave),
           ),
         ],
       ),

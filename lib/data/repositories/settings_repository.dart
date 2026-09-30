@@ -21,6 +21,9 @@ class SettingsRepository {
       put(key, value ? 'true' : 'false');
 
   Future<void> putInt(String key, int value) => put(key, '$value');
+
+  Future<void> putDate(String key, DateTime value) =>
+      put(key, value.toIso8601String());
 }
 
 /// Typed reads over the raw string map, with the defaults applied.
@@ -38,13 +41,26 @@ extension SettingsX on Map<String, String> {
       _raw(SettingKeys.notificationsEnabled) == 'true';
 
   int get alertThresholdPercent =>
-      int.tryParse(_raw(SettingKeys.alertThresholdPercent))?.clamp(1, 100) ?? 80;
+      int.tryParse(_raw(SettingKeys.alertThresholdPercent))?.clamp(1, 100) ??
+      80;
 
   int? get seedColor => int.tryParse(_raw(SettingKeys.seedColor));
 
   bool get isOnboarded => this[SettingKeys.onboarded] == 'true';
 
-  String get currency => _raw(SettingKeys.currency).isEmpty
-      ? 'EUR'
-      : _raw(SettingKeys.currency);
+  String get currency =>
+      _raw(SettingKeys.currency).isEmpty ? 'EUR' : _raw(SettingKeys.currency);
+
+  DateTime? _date(String key) => DateTime.tryParse(this[key] ?? '');
+
+  DateTime? get lastBackupAt => _date(SettingKeys.lastBackupAt);
+
+  DateTime? get firstLaunchAt => _date(SettingKeys.firstLaunchAt);
+
+  DateTime? get backupReminderSnoozedUntil =>
+      _date(SettingKeys.backupReminderSnoozedUntil);
+
+  /// The clock the backup reminder counts from: the last backup, or failing
+  /// that the day the app was first opened.
+  DateTime? get backupClockStart => lastBackupAt ?? firstLaunchAt;
 }

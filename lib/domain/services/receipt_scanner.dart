@@ -61,6 +61,10 @@ class ReceiptScanner {
   Future<void> dispose() => _recognizer.close();
 
   /// Finds the amount on a line mentioning a total keyword, if any.
+  ///
+  /// Both languages are always searched rather than keyed off the app's
+  /// locale: a receipt is printed by the shop, not by the phone, so an English
+  /// user in France still gets French tickets and vice versa.
   static Money? _guessTotal(String text) {
     const keywords = [
       'total',
@@ -70,13 +74,22 @@ class ReceiptScanner {
       'à payer',
       'montant du',
       'montant dû',
+      'amount due',
+      'balance due',
+      'to pay',
+    ];
+    // Lines that carry a keyword but never the figure we want.
+    const excluded = [
+      'sous-total',
+      'sous total',
+      'subtotal',
+      'sub-total',
+      'sub total',
     ];
     Money? best;
     for (final line in text.split('\n')) {
       final lower = line.toLowerCase();
-      if (lower.contains('sous-total') || lower.contains('sous total')) {
-        continue;
-      }
+      if (excluded.any(lower.contains)) continue;
       if (keywords.any(lower.contains)) {
         for (final a in _amountsIn(line)) {
           if (best == null || a > best) best = a;
@@ -113,6 +126,11 @@ class ReceiptScanner {
   }
 
   /// Recognises `dd/mm/yyyy`, `dd-mm-yyyy`, `dd.mm.yyyy` (2- or 4-digit year).
+  ///
+  /// Day-first only. A US-style `03/14/2026` fails the month check and simply
+  /// yields no guess rather than a wrong date, which is the right way round:
+  /// the user confirms the date anyway, and a silently swapped day and month
+  /// would be worse than an empty field.
   static DateTime? _guessDate(String text) {
     final re = RegExp(r'(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})');
     for (final m in re.allMatches(text)) {

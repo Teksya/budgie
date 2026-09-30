@@ -3,6 +3,7 @@ import 'package:budget/app/theme/shapes.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
 import 'package:budget/features/categories/category_editor_page.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:budget/shared/widgets/skeleton.dart';
 import 'package:flutter/material.dart';
@@ -13,15 +14,16 @@ class CategoriesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final categories = ref.watch(categoriesProvider);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Catégories'),
-          bottom: const TabBar(
-            tabs: [Tab(text: 'Dépenses'), Tab(text: 'Revenus')],
+          title: Text(l.categories),
+          bottom: TabBar(
+            tabs: [Tab(text: l.expenses), Tab(text: l.income)],
           ),
         ),
         body: categories.when(
@@ -29,7 +31,7 @@ class CategoriesPage extends ConsumerWidget {
           padding: EdgeInsets.all(AppSpacing.md),
           child: SkeletonList(rows: 4),
         ),
-          error: (e, _) => Center(child: Text('Erreur : $e')),
+          error: (e, _) => Center(child: Text(l.errorWith('$e'))),
           data: (all) => TabBarView(
             children: [
               _CategoryList(all: all, kind: CategoryKind.expense),
@@ -83,7 +85,7 @@ class _CategoryList extends ConsumerWidget {
             heroTag: 'add_${kind.name}',
             onPressed: () => openCategoryEditor(context, kind: kind),
             icon: const Icon(Icons.add),
-            label: const Text('Catégorie'),
+            label: Text(L.of(context).category),
           ),
         ),
       ],
@@ -124,6 +126,7 @@ class _CategoryRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final color = Color(category.colorValue);
     return ListTile(
       contentPadding: EdgeInsets.only(
@@ -137,7 +140,7 @@ class _CategoryRow extends ConsumerWidget {
         child: Icon(iconFor(category.iconKey), size: isChild ? 16 : 20),
       ),
       title: Text(category.name),
-      subtitle: category.isSystem ? const Text('catégorie système') : null,
+      subtitle: category.isSystem ? Text(l.systemCategory) : null,
       trailing: PopupMenuButton<String>(
         onSelected: (value) => switch (value) {
           'edit' => openCategoryEditor(
@@ -149,31 +152,29 @@ class _CategoryRow extends ConsumerWidget {
           _ => null,
         },
         itemBuilder: (context) => [
-          const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+          PopupMenuItem(value: 'edit', child: Text(l.edit)),
           if (!category.isSystem)
-            const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+            PopupMenuItem(value: 'delete', child: Text(l.actionDelete)),
         ],
       ),
     );
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Supprimer « ${category.name} » ?'),
-        content: const Text(
-          'Les transactions de cette catégorie deviendront « Non catégorisé ». '
-          'Les sous-catégories seront aussi supprimées.',
-        ),
+        title: Text(l.deleteNamedQuestion(category.name)),
+        content: Text(l.deleteCategoryWarning),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(l.actionDelete),
           ),
         ],
       ),

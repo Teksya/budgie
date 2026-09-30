@@ -1,13 +1,45 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+    <!-- SCHEDULE_EXACT_ALARM is a Play-restricted permission (alarm clocks and
+         calendars only); a budgeting app requesting it gets rejected. We never
+         needed it: every reminder is scheduled inexactly. flutter_local_
+         notifications declares it in its own manifest, so it must be actively
+         removed at merge time, not merely left out here. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
+        tools:node="remove"/>
+
+    <!-- local_auth declares the pre-API-28 USE_FINGERPRINT permission. It is
+         dead code for us (minSdk 26 uses USE_BIOMETRIC), but Play translates it
+         into a *required* android.hardware.fingerprint feature and drops every
+         device without a fingerprint reader from the eligible catalogue. The
+         app works fine without one — biometrics are optional and fall back to
+         the device PIN — so the permission goes and the feature is declared
+         explicitly optional. -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT"
+        tools:node="remove"/>
+    <uses-feature android:name="android.hardware.fingerprint"
+        android:required="false"/>
+
+    <!-- Auto Backup is on by default; declaring it makes it a decision rather
+         than an accident. Kept enabled so a user changing phones keeps their
+         budget without having had to think about exporting a .budgetbak, which
+         most never will. The trade-off is real and must be declared in the Play
+         Data Safety form alongside the ML Kit telemetry (see D6): the database
+         does leave the device this way, even though Android encrypts it
+         end-to-end with the lockscreen PIN. See res/xml/backup_rules.xml. -->
     <application
         android:label="Budgie"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"

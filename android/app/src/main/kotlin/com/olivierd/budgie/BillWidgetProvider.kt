@@ -1,4 +1,4 @@
-package com.olivier.budget
+package com.olivierd.budgie
 
 import android.appwidget.AppWidgetManager
 import android.content.Context

@@ -20,6 +20,12 @@ class RecurrenceService {
   /// due on the 31st falls on the 28th/29th in February). The phase — which
   /// months an every-N-months charge lands on — is anchored to
   /// [Recurrence.startDate], not to the period.
+  ///
+  /// [Recurrence.startDate] gates whole periods, not individual days: a rent
+  /// declared on the 28th was already paid on the 5th, and the month's figures
+  /// only make sense if that instance exists. Clipping on the exact day instead
+  /// meant that signing up late in the month produced no salary and no charges
+  /// at all, so the very first dashboard read "over budget".
   static List<DateTime> dueDatesFor(
     Recurrence r, {
     required DateTime start,
@@ -27,6 +33,8 @@ class RecurrenceService {
   }) {
     final step = r.frequency.monthStep;
     final anchor = r.startDate.dateOnly;
+    // The recurrence has not begun by the time this period ends.
+    if (anchor.isAfter(endInclusive)) return const [];
     final anchorAbsMonth = anchor.year * 12 + (anchor.month - 1);
     final result = <DateTime>[];
 
@@ -46,7 +54,6 @@ class RecurrenceService {
       final day = r.dueDayOfMonth.clamp(1, daysInMonth(year, month));
       final due = DateTime(year, month, day);
 
-      if (due.isBefore(anchor)) continue;
       if (r.endDate != null && due.isAfter(r.endDate!.dateOnly)) continue;
       if (due.isBefore(start) || due.isAfter(endInclusive)) continue;
 

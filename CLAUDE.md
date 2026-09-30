@@ -13,14 +13,15 @@
 
 ## Règles de code
 - Les montants sont des **`int` en centimes**, jamais des `double`. Type `Money` obligatoire.
-- Code et noms en **anglais**, interface utilisateur en **français** (locale `fr_FR`, devise EUR).
+- Code et noms en **anglais**. **Aucune chaîne d'UI en dur** : tout passe par `lib/l10n/app_fr.arb` + `app_en.arb` (classe générée `L`). Hors widgets, `translationsProvider`. Voir `ARCHITECTURE.md` § 5.1 — en particulier : pas de locale explicite dans `DateFormat`, pas de `'€'` codé en dur.
 - Pas de logique métier dans les widgets : widget → provider Riverpod → service → repository → DAO.
 - Feature-first : une feature ne dépend jamais d'une autre feature.
 - `flutter analyze` doit rester à zéro warning.
 - Tests obligatoires sur `domain/services/` (`budget_engine`, `period_service`, `recurrence_service`).
 - Après modification d'une table Drift ou d'un provider : `dart run build_runner build -d`.
-- Migrations Drift numérotées, jamais destructrices.
+- Migrations Drift numérotées, jamais destructrices, **et enveloppées dans une transaction** (`onUpgrade` ne l'est pas par défaut — voir `ARCHITECTURE.md` § 5.2). Toute table ajoutée au schéma doit aussi être ajoutée au dump de `BackupService`, sinon la restauration l'efface.
 
 ## Contexte utile
-- Android uniquement, `minSdk 36`, aucun backend, aucune donnée ne quitte l'appareil.
+- Android uniquement, `minSdk 26` (Android 8+, abaissé le 2026-07-28 pour la portée Play), `targetSdk 36`, aucun backend.
+- **Nuance importante (vérifiée dans le manifeste fusionné release, 2026-07-14) :** les *données budgétaires* ne quittent jamais l'appareil — aucun code de l'app n'ouvre de connexion. Mais le build release **contient la permission `INTERNET`**, injectée par `com.google.android.datatransport:transport-backend-cct`, une dépendance de ML Kit (scanner de tickets), qui remonte de la télémétrie à Google. Ne plus écrire « aucune donnée ne quitte l'appareil » sans cette nuance : c'est faux au sens strict, et c'est ce qu'il faut déclarer dans le formulaire *Data Safety* de Play. Voir décision D6.
 - Flutter 3.44.2 / Dart 3.12.2. Les widgets M3 Expressive (`ButtonGroup`, `SplitButton`, `FabMenu`, `LoadingIndicator`) **n'existent pas** dans ce canal : ne pas tenter de les importer, ils sont reconstruits à la main.

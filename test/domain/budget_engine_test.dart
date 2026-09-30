@@ -10,6 +10,7 @@ BudgetInputs inputs({
   Money incomePlanned = Money.zero,
   Money expenses = Money.zero,
   Money unpaidCharges = Money.zero,
+  Money chargesPaid = Money.zero,
   Money plannedSavingsRemaining = Money.zero,
   int totalDays = 30,
   int daysRemaining = 30,
@@ -19,6 +20,7 @@ BudgetInputs inputs({
   incomePlanned: incomePlanned,
   expenses: expenses,
   unpaidCharges: unpaidCharges,
+  chargesPaid: chargesPaid,
   plannedSavingsRemaining: plannedSavingsRemaining,
   totalDays: totalDays,
   daysRemaining: daysRemaining,
@@ -174,6 +176,96 @@ void main() {
 
     test('is 0 when nothing is available', () {
       expect(BudgetEngine.compute(inputs()).committedRatio, 0.0);
+    });
+  });
+
+  group('end-of-month projection', () {
+    test('extends the current pace over the days left', () {
+      // 10 days in, 200 € of day-to-day spending: 20 €/day over 20 more days.
+      final s = BudgetEngine.compute(
+        inputs(
+          incomeReceived: Money.fromEuros(1000),
+          expenses: Money.fromEuros(200),
+          daysRemaining: 20,
+        ),
+      );
+      expect(s.remaining, Money.fromEuros(800));
+      expect(s.projectedRemaining, Money.fromEuros(400));
+    });
+
+    test('a paid charge is a one-off, not a pace', () {
+      // Same 800 € spent, but 700 € of it was the rent. Only 100 € is habit.
+      final s = BudgetEngine.compute(
+        inputs(
+          incomeReceived: Money.fromEuros(2000),
+          expenses: Money.fromEuros(800),
+          chargesPaid: Money.fromEuros(700),
+          daysRemaining: 20,
+        ),
+      );
+      expect(s.remaining, Money.fromEuros(1200));
+      // 100 € over 10 days = 10 €/day, 20 days left → 200 € more.
+      expect(s.projectedRemaining, Money.fromEuros(1000));
+    });
+
+    test('stays quiet in the first days, when a pace means nothing', () {
+      final s = BudgetEngine.compute(
+        inputs(
+          incomeReceived: Money.fromEuros(1000),
+          expenses: Money.fromEuros(150),
+          daysRemaining: 28,
+        ),
+      );
+      expect(s.projectedRemaining, isNull);
+    });
+
+    test('stays quiet once the period is over', () {
+      final s = BudgetEngine.compute(
+        inputs(
+          incomeReceived: Money.fromEuros(1000),
+          expenses: Money.fromEuros(150),
+          daysRemaining: 0,
+        ),
+      );
+      expect(s.projectedRemaining, isNull);
+    });
+
+    test('nothing spent day to day means nothing to extrapolate', () {
+      final s = BudgetEngine.compute(
+        inputs(
+          incomeReceived: Money.fromEuros(1000),
+          expenses: Money.fromEuros(300),
+          chargesPaid: Money.fromEuros(300),
+          daysRemaining: 20,
+        ),
+      );
+      expect(s.projectedRemaining, s.remaining);
+    });
+
+    test('warns only when the forecast turns a healthy month red', () {
+      final tooFast = BudgetEngine.compute(
+        inputs(
+          incomeReceived: Money.fromEuros(1000),
+          expenses: Money.fromEuros(400),
+          daysRemaining: 20,
+        ),
+      );
+      expect(tooFast.remaining.isNegative, isFalse);
+      expect(tooFast.projectedRemaining, Money.fromEuros(-200));
+      expect(tooFast.projectionWarns, isTrue);
+
+      final alreadyOver = BudgetEngine.compute(
+        inputs(
+          incomeReceived: Money.fromEuros(100),
+          expenses: Money.fromEuros(400),
+          daysRemaining: 20,
+        ),
+      );
+      expect(
+        alreadyOver.projectionWarns,
+        isFalse,
+        reason: 'the headline figure already says it',
+      );
     });
   });
 }

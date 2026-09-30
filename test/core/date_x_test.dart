@@ -1,9 +1,15 @@
 import 'package:budget/core/date_x.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 void main() {
-  setUpAll(() => initializeDateFormatting('fr_FR'));
+  setUpAll(initializeDateFormatting);
+
+  // `date_x` deliberately passes no locale to `DateFormat`, so every label here
+  // depends on this global — the same one `AppCurrency.configure` sets from the
+  // language setting.
+  setUp(() => Intl.defaultLocale = 'fr_FR');
 
   group('periodContaining, start day 1', () {
     test('covers the whole calendar month', () {
@@ -107,6 +113,14 @@ void main() {
     test('an offset period shows both bounds', () {
       final p = periodContaining(DateTime(2026, 7, 28), startDay: 25);
       expect(p.label, contains('→'));
+    });
+
+    test('the language setting reaches month and day names', () {
+      Intl.defaultLocale = 'en_US';
+      final p = periodContaining(DateTime(2026, 7, 10), startDay: 1);
+      expect(p.label, 'July 2026');
+      expect(DateTime(2026, 7, 6).longDayLabel, 'Monday 6 July');
+      expect(DateTime(2026, 7, 6).shortLabel, '6 Jul');
     });
   });
 

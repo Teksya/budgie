@@ -1,0 +1,13 @@
+Budgie now speaks English, and looks further ahead.
+
+• Forecast: "at this rate, you finish the month at…"
+• Compared with last month, day for day
+• Rebuilt Stats: 1 to 12 months, category trends, what comes back most
+• End-of-month recap
+• Suggestions: subscriptions spotted, budgets proposed
+• Export a month to CSV
+• Several currencies, using your own rate
+• Duplicate an expense, undo a delete
+• Search by amount
+
+Still offline. Your data stays with you.

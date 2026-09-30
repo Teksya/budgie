@@ -1,5 +1,6 @@
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -18,7 +19,15 @@ class NotificationService {
 
   static const _channelId = 'charge_reminders';
 
-  Future<void> init() async {
+  /// The translations last handed to [init], reused by the notification details
+  /// built deeper down. Null until the first init, which `main` always runs.
+  L? _l;
+
+  /// [l] names the Android notification channel, which the user sees in the
+  /// system settings. Re-creating a channel with the same id updates its name,
+  /// so switching language in-app renames it on the next launch.
+  Future<void> init(L l) async {
+    _l = l;
     if (_ready) return;
     try {
       tz.initializeTimeZones();
@@ -31,10 +40,10 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin
           >()
           ?.createNotificationChannel(
-            const AndroidNotificationChannel(
+            AndroidNotificationChannel(
               _channelId,
-              "Rappels d'échéance",
-              description: 'Rappels avant une charge à payer',
+              l.notifChannelName,
+              description: l.notifChannelDescription,
               importance: Importance.defaultImportance,
             ),
           );
@@ -45,9 +54,9 @@ class NotificationService {
   }
 
   /// Asks for the OS notification permission. Returns true if granted.
-  Future<bool> requestPermission() async {
+  Future<bool> requestPermission(L l) async {
     try {
-      await init();
+      await init(l);
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       final granted = await android?.requestNotificationsPermission();
@@ -60,9 +69,9 @@ class NotificationService {
 
   /// Replaces all scheduled reminders with ones for the given pending charges:
   /// a heads-up three days before and one on the due date, each at 09:00.
-  Future<void> syncChargeReminders(List<RecurrenceInstance> pending) async {
+  Future<void> syncChargeReminders(L l, List<RecurrenceInstance> pending) async {
     try {
-      await init();
+      await init(l);
       if (!_ready) return;
       await _plugin.cancelAll();
 
@@ -73,15 +82,15 @@ class NotificationService {
           id: c.id * 2,
           when: _at9(c.dueDate),
           now: now,
-          title: "Échéance aujourd'hui : ${c.label}",
-          body: '${amount.format()} à payer.',
+          title: l.notifDueTodayTitle(c.label),
+          body: l.notifDueTodayBody(amount.format()),
         );
         await _scheduleAt(
           id: c.id * 2 + 1,
           when: _at9(c.dueDate.subtract(const Duration(days: 3))),
           now: now,
-          title: 'Dans 3 jours : ${c.label}',
-          body: '${amount.format()} à prévoir le ${c.dueDate.day}.',
+          title: l.notifDueSoonTitle(c.label),
+          body: l.notifDueSoonBody(amount.format(), c.dueDate.day),
         );
       }
     } on Object catch (e) {
@@ -101,31 +110,54 @@ class NotificationService {
   static const _dailyReminderId = 900000;
 
   /// A gentle daily reminder to log expenses, repeating at [hour]:00 local.
-  Future<void> scheduleDailyReminder({int hour = 20}) async {
+  Future<void> scheduleDailyReminder(L l, {int hour = 20}) async {
     try {
-      await init();
+      await init(l);
       if (!_ready) return;
       final now = tz.TZDateTime.now(tz.local);
       var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
       if (!when.isAfter(now)) when = when.add(const Duration(days: 1));
       await _plugin.zonedSchedule(
         id: _dailyReminderId,
-        title: 'Pense à noter tes dépenses 💸',
-        body: '2 minutes pour rester à jour sur ton budget.',
+        title: l.notifDailyTitle,
+        body: l.notifDailyBody,
         scheduledDate: when,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            "Rappels d'échéance",
-            channelDescription: 'Rappels avant une charge à payer',
-          ),
-        ),
+        notificationDetails: _details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         // Repeats every day at the same time.
         matchDateTimeComponents: DateTimeComponents.time,
       );
     } on Object catch (e) {
       debugPrint('scheduleDailyReminder failed: $e');
+    }
+  }
+
+  // Fixed id, outside the charge-instance id space, for the month recap.
+  static const _recapId = 900001;
+
+  /// One notification the morning after a period closes, pointing at the
+  /// recap. Not a reminder to do something — a reason to come back.
+  Future<void> scheduleMonthRecap(L l, DateTime periodEnd) async {
+    try {
+      await init(l);
+      if (!_ready) return;
+      final when = tz.TZDateTime.from(
+        DateTime(periodEnd.year, periodEnd.month, periodEnd.day, 10)
+            .add(const Duration(days: 1)),
+        tz.local,
+      );
+      if (!when.isAfter(tz.TZDateTime.now(tz.local))) return;
+
+      await _plugin.zonedSchedule(
+        id: _recapId,
+        title: l.notifRecapTitle,
+        body: l.notifRecapBody,
+        scheduledDate: when,
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    } on Object catch (e) {
+      debugPrint('scheduleMonthRecap failed: $e');
     }
   }
 
@@ -148,16 +180,20 @@ class NotificationService {
       title: title,
       body: body,
       scheduledDate: tz.TZDateTime.from(when, tz.local),
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          "Rappels d'échéance",
-          channelDescription: 'Rappels avant une charge à payer',
-        ),
-      ),
+      notificationDetails: _details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
+
+  /// Android reads the channel name from the channel itself; these strings only
+  /// matter on the versions that predate channels, hence the plain fallback.
+  NotificationDetails get _details => NotificationDetails(
+    android: AndroidNotificationDetails(
+      _channelId,
+      _l?.notifChannelName ?? 'Reminders',
+      channelDescription: _l?.notifChannelDescription,
+    ),
+  );
 
   static DateTime _at9(DateTime day) =>
       DateTime(day.year, day.month, day.day, 9);

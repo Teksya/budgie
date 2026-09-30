@@ -18,14 +18,14 @@ class AuthService {
     }
   }
 
-  /// Prompts the user. Falls back to the device PIN/pattern if biometrics
-  /// are unavailable. Returns true only on success.
-  Future<bool> authenticate() async {
+  /// Prompts the user with [reason]. Falls back to the device PIN/pattern if
+  /// biometrics are unavailable. Returns true only on success.
+  Future<bool> authenticate(String reason) async {
     try {
       // local_auth 3.x exposes the flags directly (no `options`). Keeping
       // biometricOnly false lets the device PIN act as a fallback.
       return await _auth.authenticate(
-        localizedReason: 'Déverrouille ton budget',
+        localizedReason: reason,
         persistAcrossBackgrounding: true,
       );
     } on Object catch (e) {

@@ -30,14 +30,19 @@ class PeriodRange {
     return !day.isBefore(start) && !day.isAfter(endInclusive);
   }
 
-  /// `Juillet 2026` when aligned on the 1st, `25 juil. → 24 août 2026`
-  /// otherwise.
+  /// `Juillet 2026` / `July 2026` when aligned on the 1st, `25 juil. → 24 août
+  /// 2026` otherwise.
+  ///
+  /// No locale is passed anywhere in this file on purpose: `DateFormat` then
+  /// follows `Intl.defaultLocale`, which `AppCurrency.configure` sets from the
+  /// language setting. Hardcoding `fr_FR` here would leave every date French in
+  /// an English app.
   String get label {
     if (start.day == 1) {
-      return _capitalize(DateFormat.yMMMM('fr_FR').format(start));
+      return _capitalize(DateFormat.yMMMM().format(start));
     }
-    final from = DateFormat('d MMM', 'fr_FR').format(start);
-    final to = DateFormat('d MMM y', 'fr_FR').format(endInclusive);
+    final from = DateFormat('d MMM').format(start);
+    final to = DateFormat('d MMM y').format(endInclusive);
     return '$from → $to';
   }
 
@@ -108,10 +113,10 @@ extension DateOnlyX on DateTime {
   bool isSameDay(DateTime other) =>
       year == other.year && month == other.month && day == other.day;
 
-  /// `lundi 6 juillet`
+  /// `lundi 6 juillet` / `Monday 6 July`
   String get longDayLabel =>
-      _capitalize(DateFormat('EEEE d MMMM', 'fr_FR').format(this));
+      _capitalize(DateFormat('EEEE d MMMM').format(this));
 
-  /// `6 juil.`
-  String get shortLabel => DateFormat('d MMM', 'fr_FR').format(this);
+  /// `6 juil.` / `6 Jul`
+  String get shortLabel => DateFormat('d MMM').format(this);
 }

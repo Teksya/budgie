@@ -1,11 +1,17 @@
+import 'dart:async';
+
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/app_theme.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/date_x.dart';
 import 'package:budget/core/money.dart';
+import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
 import 'package:budget/data/repositories/history_repository.dart';
 import 'package:budget/data/repositories/transaction_repository.dart';
+import 'package:budget/features/history/month_recap_page.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:budget/shared/widgets/amount_text.dart';
 import 'package:budget/shared/widgets/skeleton.dart';
@@ -18,6 +24,7 @@ class HistoryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final periods = ref.watch(periodsProvider).value ?? const [];
     final selected = ref.watch(selectedPeriodProvider);
     final summary = ref.watch(periodSummaryProvider);
@@ -35,11 +42,30 @@ class HistoryPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historique'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        title: Text(l.history),
+        // BackButton, not a bare IconButton: it carries the localised
+        // "Retour" tooltip and semantics that a raw arrow icon does not.
+        leading: const BackButton(),
+        actions: [
+          IconButton(
+            onPressed: selected == null
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => MonthRecapPage(period: selected),
+                    ),
+                  ),
+            icon: const Icon(Icons.auto_awesome_outlined),
+            tooltip: l.recapSeeMonth,
+          ),
+          IconButton(
+            onPressed: selected == null
+                ? null
+                : () => unawaited(_export(context, ref, selected)),
+            icon: const Icon(Icons.ios_share),
+            tooltip: l.exportMonth,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -53,18 +79,30 @@ class HistoryPage extends ConsumerWidget {
           Expanded(
             child: summary.when(
               loading: () => const Padding(
-          padding: EdgeInsets.all(AppSpacing.md),
-          child: SkeletonList(rows: 4),
-        ),
-              error: (e, _) => Center(child: Text('Erreur : $e')),
-              data: (s) => s == null
-                  ? const _NoData()
-                  : _PeriodDetail(summary: s),
+                padding: EdgeInsets.all(AppSpacing.md),
+                child: SkeletonList(rows: 4),
+              ),
+              error: (e, _) => Center(child: Text(l.errorWith('$e'))),
+              data: (s) =>
+                  s == null ? const _NoData() : _PeriodDetail(summary: s),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+Future<void> _export(BuildContext context, WidgetRef ref, Period period) async {
+  final l = L.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final exported = await ref
+      .read(csvExportServiceProvider)
+      .exportPeriod(l, period);
+  if (!exported) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(l.exportEmpty)));
   }
 }
 
@@ -81,6 +119,7 @@ class _MonthNavigator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -93,7 +132,7 @@ class _MonthNavigator extends StatelessWidget {
           IconButton.filledTonal(
             onPressed: onOlder,
             icon: const Icon(Icons.chevron_left),
-            tooltip: 'Mois précédent',
+            tooltip: l.previousMonth,
           ),
           Text(
             label,
@@ -104,7 +143,7 @@ class _MonthNavigator extends StatelessWidget {
           IconButton.filledTonal(
             onPressed: onNewer,
             icon: const Icon(Icons.chevron_right),
-            tooltip: 'Mois suivant',
+            tooltip: l.nextMonth,
           ),
         ],
       ),
@@ -119,7 +158,9 @@ class _PeriodDetail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final txns = ref.watch(selectedPeriodTransactionsProvider).value ?? const [];
+    final l = L.of(context);
+    final txns =
+        ref.watch(selectedPeriodTransactionsProvider).value ?? const [];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -136,10 +177,7 @@ class _PeriodDetail extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Transactions',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text(l.navTransactions, style: Theme.of(context).textTheme.titleMedium),
             Text(
               '${txns.length}',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -154,7 +192,7 @@ class _PeriodDetail extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Text(
-                'Aucune transaction ce mois-là.',
+                l.noTransactionsThatMonth,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -184,6 +222,7 @@ class _ClosingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final positive = !summary.closingBalance.isNegative;
@@ -198,9 +237,11 @@ class _ClosingCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Solde de fin de mois',
+            l.closingBalance,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: positive ? scheme.onHealthyContainer : scheme.onErrorContainer,
+              color: positive
+                  ? scheme.onHealthyContainer
+                  : scheme.onErrorContainer,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -208,16 +249,21 @@ class _ClosingCard extends StatelessWidget {
             summary.closingBalance,
             signed: true,
             style: theme.textTheme.displaySmall?.copyWith(
-              color: positive ? scheme.onHealthyContainer : scheme.onErrorContainer,
+              color: positive
+                  ? scheme.onHealthyContainer
+                  : scheme.onErrorContainer,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'reporté sur le mois suivant',
+            l.carriedToNextMonth,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: (positive ? scheme.onHealthyContainer : scheme.onErrorContainer)
-                  .withValues(alpha: 0.8),
+              color:
+                  (positive
+                          ? scheme.onHealthyContainer
+                          : scheme.onErrorContainer)
+                      .withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -233,28 +279,29 @@ class _BreakdownCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     return Card(
       child: Column(
         children: [
           _Line(
-            label: 'Report du mois précédent',
+            label: l.carryInLabel,
             amount: summary.carryIn,
             signed: true,
-            trailing: summary.isManualCarry ? 'corrigé' : null,
+            trailing: summary.isManualCarry ? l.carryCorrected : null,
           ),
           const Divider(height: 1),
-          _Line(label: 'Revenus perçus', amount: summary.incomeReceived),
+          _Line(label: l.incomeReceived, amount: summary.incomeReceived),
           if (summary.incomePlanned.isPositive)
             _Line(
-              label: 'Revenus prévus',
+              label: l.incomePlanned,
               amount: summary.incomePlanned,
               faded: true,
             ),
           const Divider(height: 1),
-          _Line(label: 'Dépenses', amount: -summary.expenses, signed: true),
+          _Line(label: l.expenses, amount: -summary.expenses, signed: true),
           if (summary.pendingChargesCount > 0)
             _Line(
-              label: 'Charges non payées (${summary.pendingChargesCount})',
+              label: l.unpaidCharges(summary.pendingChargesCount),
               amount: -summary.unpaidCharges,
               signed: true,
               faded: true,
@@ -268,7 +315,7 @@ class _BreakdownCard extends ConsumerWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => _editCarry(context, ref),
                     icon: const Icon(Icons.tune, size: 18),
-                    label: const Text('Corriger le report'),
+                    label: Text(l.fixCarry),
                   ),
                 ),
               ],
@@ -280,20 +327,18 @@ class _BreakdownCard extends ConsumerWidget {
   }
 
   Future<void> _editCarry(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
     final controller = TextEditingController(
       text: (summary.carryIn.cents / 100).toStringAsFixed(2),
     );
     final result = await showDialog<Money?>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Corriger le report'),
+        title: Text(l.fixCarry),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Force le report entrant de ce mois. Les mois suivants sont '
-              'recalculés en conséquence.',
-            ),
+            Text(l.fixCarryBody),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: controller,
@@ -305,9 +350,9 @@ class _BreakdownCard extends ConsumerWidget {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp('[0-9.,-]')),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Report',
-                suffixText: '€',
+              decoration: InputDecoration(
+                labelText: l.carryShort,
+                suffixText: AppCurrency.instance.symbol,
               ),
             ),
           ],
@@ -316,11 +361,11 @@ class _BreakdownCard extends ConsumerWidget {
           if (summary.isManualCarry)
             TextButton(
               onPressed: () => Navigator.pop(context, Money.zero),
-              child: const Text("Rétablir l'auto"),
+              child: Text(l.restoreAuto),
             ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () {
@@ -332,7 +377,7 @@ class _BreakdownCard extends ConsumerWidget {
                 value == null ? null : Money.fromEuros(value),
               );
             },
-            child: const Text('Appliquer'),
+            child: Text(l.actionApply),
           ),
         ],
       ),
@@ -411,8 +456,9 @@ class _HistoryTxnTile extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final txn = view.txn;
     final isIncome = txn.type == TxnType.income;
-    final color =
-        view.category != null ? Color(view.category!.colorValue) : scheme.primary;
+    final color = view.category != null
+        ? Color(view.category!.colorValue)
+        : scheme.primary;
 
     return ListTile(
       leading: CircleAvatar(
@@ -420,7 +466,7 @@ class _HistoryTxnTile extends ConsumerWidget {
         foregroundColor: color,
         child: Icon(iconFor(view.category?.iconKey), size: 20),
       ),
-      title: Text(view.category?.name ?? 'Non catégorisé'),
+      title: Text(view.category?.name ?? L.of(context).uncategorized),
       subtitle: Text(txn.date.shortLabel),
       trailing: AmountText(
         isIncome ? Money(txn.amountCents) : -Money(txn.amountCents),
@@ -432,29 +478,45 @@ class _HistoryTxnTile extends ConsumerWidget {
     );
   }
 
+  /// Deleting from a past month reflows the carry-over of every later month,
+  /// so the confirmation stays — but it is undoable all the same.
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(transactionRepositoryProvider);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer cette transaction ?'),
-        content: const Text(
-          'Le solde de ce mois et le report des mois suivants seront recalculés.',
-        ),
+        title: Text(l.deleteTransactionQuestion),
+        content: Text(l.deleteTransactionBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(l.actionDelete),
           ),
         ],
       ),
     );
-    if (ok ?? false) {
-      await ref.read(transactionRepositoryProvider).delete(view.txn);
-    }
+    if (!(ok ?? false)) return;
+
+    final deleted = view.txn;
+    await repo.delete(deleted);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(l.transactionDeleted),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: l.actionUndo,
+            onPressed: () => unawaited(repo.restore(deleted)),
+          ),
+        ),
+      );
   }
 }
 
@@ -463,6 +525,7 @@ class _NoData extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     return Center(
       child: Padding(
@@ -476,10 +539,10 @@ class _NoData extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Aucune donnée', style: theme.textTheme.titleMedium),
+            Text(l.noDataTitle, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Les mois passés apparaîtront ici au fil du temps.',
+              l.noDataBody,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

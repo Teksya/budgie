@@ -1,10 +1,12 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/app_theme.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
 import 'package:budget/features/debts/add_debt_page.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/labels.dart';
 import 'package:budget/shared/widgets/amount_text.dart';
 import 'package:budget/shared/widgets/skeleton.dart';
@@ -17,23 +19,24 @@ class DebtsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final debts = ref.watch(debtsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dettes & crédits')),
+      appBar: AppBar(title: Text(l.debtsCredits)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const AddDebtPage()),
         ),
         icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+        label: Text(l.actionAdd),
       ),
       body: debts.when(
         loading: () => const Padding(
           padding: EdgeInsets.all(AppSpacing.md),
           child: SkeletonList(rows: 4),
         ),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (e, _) => Center(child: Text(l.errorWith('$e'))),
         data: (list) => list.isEmpty
             ? const _Empty()
             : ListView(
@@ -57,6 +60,7 @@ class _DebtCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final lent = debt.kind == DebtKind.debtLent;
@@ -81,7 +85,7 @@ class _DebtCard extends ConsumerWidget {
                       children: [
                         Text(debt.name, style: theme.textTheme.titleMedium),
                         Text(
-                          debt.kind.label,
+                          debt.kind.label(l),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -91,22 +95,21 @@ class _DebtCard extends ConsumerWidget {
                   ),
                   if (debt.settled)
                     Chip(
-                      label: const Text('Soldé'),
+                      label: Text(l.debtSettled),
                       backgroundColor: scheme.healthyContainer,
                       labelStyle: TextStyle(color: scheme.onHealthyContainer),
                     )
                   else
                     PopupMenuButton<String>(
                       onSelected: (v) => switch (v) {
-                        'delete' => ref
-                            .read(debtRepositoryProvider)
-                            .delete(debt.id),
+                        'delete' =>
+                          ref.read(debtRepositoryProvider).delete(debt.id),
                         _ => null,
                       },
                       itemBuilder: (context) => [
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'delete',
-                          child: Text('Supprimer'),
+                          child: Text(l.actionDelete),
                         ),
                       ],
                     ),
@@ -120,6 +123,8 @@ class _DebtCard extends ConsumerWidget {
                   minHeight: 10,
                   backgroundColor: scheme.surfaceContainerHighest,
                   color: debt.settled ? scheme.healthy : scheme.primary,
+                  semanticsLabel: l.debtRepaymentOf(debt.name),
+                  semanticsValue: spokenPercent(l, ratio),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -127,7 +132,7 @@ class _DebtCard extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    lent ? 'Reste à récupérer' : 'Capital restant dû',
+                    lent ? l.debtLeftToCollect : l.debtOutstanding,
                     style: theme.textTheme.bodyMedium,
                   ),
                   AmountText(
@@ -140,8 +145,13 @@ class _DebtCard extends ConsumerWidget {
               ),
               if (debt.installmentsTotal != null)
                 Text(
-                  '${debt.installmentsPaid} / ${debt.installmentsTotal} échéances'
-                  '${debt.installmentCents > 0 ? ' · ${Money(debt.installmentCents).format()}/mois' : ''}',
+                  l.debtInstalmentCount(
+                        debt.installmentsPaid,
+                        debt.installmentsTotal!,
+                      ) +
+                      (debt.installmentCents > 0
+                          ? ' · ${l.perMonth(Money(debt.installmentCents).format())}'
+                          : ''),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -153,7 +163,7 @@ class _DebtCard extends ConsumerWidget {
                   child: FilledButton.tonalIcon(
                     onPressed: () => _pay(context, ref),
                     icon: const Icon(Icons.check, size: 18),
-                    label: Text(lent ? 'Remboursé' : 'Payer une échéance'),
+                    label: Text(lent ? l.debtRepaid : l.debtPayInstalment),
                   ),
                 ),
               ],
@@ -165,19 +175,20 @@ class _DebtCard extends ConsumerWidget {
   }
 
   Future<void> _pay(BuildContext context, WidgetRef ref) async {
+    final l = L.of(context);
     final suggested = debt.installmentCents > 0
         ? debt.installmentCents
         : debt.remainingCents;
     final controller = TextEditingController(
       text: (suggested / 100).toStringAsFixed(2),
     );
-    final accounts = ref.read(accountsProvider).value ?? const [];
-    final accountId = accounts.isNotEmpty ? accounts.first.id : null;
+    final accountId = await ref.read(accountRepositoryProvider).defaultId();
+    if (!context.mounted) return;
 
     final amount = await showDialog<Money>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Paiement · ${debt.name}'),
+        title: Text(l.debtPaymentTitle(debt.name)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -185,12 +196,15 @@ class _DebtCard extends ConsumerWidget {
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
           ],
-          decoration: const InputDecoration(labelText: 'Montant', suffixText: '€'),
+          decoration: InputDecoration(
+            labelText: l.amount,
+            suffixText: AppCurrency.instance.symbol,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () {
@@ -202,7 +216,7 @@ class _DebtCard extends ConsumerWidget {
                 v == null || v <= 0 ? null : Money.fromEuros(v),
               );
             },
-            child: const Text('Valider'),
+            child: Text(l.actionConfirm),
           ),
         ],
       ),
@@ -210,11 +224,13 @@ class _DebtCard extends ConsumerWidget {
     controller.dispose();
     if (amount == null || accountId == null) return;
 
-    await ref.read(debtRepositoryProvider).recordPayment(
-      debt,
-      amountCents: amount.cents,
-      accountId: accountId,
-    );
+    await ref
+        .read(debtRepositoryProvider)
+        .recordPayment(
+          debt,
+          amountCents: amount.cents,
+          accountId: accountId,
+        );
   }
 }
 
@@ -223,6 +239,7 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     return Center(
       child: Padding(
@@ -236,11 +253,10 @@ class _Empty extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Aucune dette', style: theme.textTheme.titleMedium),
+            Text(l.noDebtsTitle, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Suis tes crédits, tes paiements en plusieurs fois, ou '
-              "l'argent qu'on te doit.",
+              l.noDebtsBody,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

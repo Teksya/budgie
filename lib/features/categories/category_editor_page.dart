@@ -2,6 +2,7 @@ import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/icons.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -85,12 +86,13 @@ class _CategoryEditorPageState extends ConsumerState<CategoryEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final editing = widget.existing != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(editing ? 'Modifier la catégorie' : 'Nouvelle catégorie'),
+        title: Text(editing ? l.editCategory : l.newCategory),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -114,14 +116,14 @@ class _CategoryEditorPageState extends ConsumerState<CategoryEditorPage> {
                   controller: _name,
                   autofocus: true,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(labelText: 'Nom'),
+                  decoration: InputDecoration(labelText: l.fieldName),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.xl),
-          Text('Couleur', style: theme.textTheme.labelLarge),
+          Text(l.fieldColour, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -136,7 +138,7 @@ class _CategoryEditorPageState extends ConsumerState<CategoryEditorPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.xl),
-          Text('Icône', style: theme.textTheme.labelLarge),
+          Text(l.fieldIcon, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -160,7 +162,7 @@ class _CategoryEditorPageState extends ConsumerState<CategoryEditorPage> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(editing ? 'Enregistrer' : 'Créer la catégorie'),
+                : Text(editing ? l.actionSave : l.createCategory),
           ),
         ],
       ),

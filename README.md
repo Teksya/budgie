@@ -54,8 +54,16 @@ never `double`. See `docs/ARCHITECTURE.md` for the data model and formulas, and
 
 ## Privacy
 
-Budgie is fully offline. It requests no network access in release builds; the
-only data that can leave the device is a backup file you explicitly export.
+Your budget stays on your phone. There is no account, no backend, and no code in
+this app that sends your financial data anywhere. The only way your data leaves
+the device is a backup file you explicitly export — and it is encrypted with a
+password you choose.
+
+One honest caveat: the release build does hold the `INTERNET` permission. It is
+pulled in by Google ML Kit, which powers the optional receipt scanner, and its
+bundled telemetry component (`transport-backend-cct`) reports usage diagnostics
+to Google. Text recognition itself runs entirely on-device. So "offline" is true
+of your budget, not of every byte the app is capable of sending.
 
 ## License
 

@@ -5,7 +5,7 @@ import 'package:budget/domain/services/period_service.dart';
 import 'package:budget/domain/services/recurrence_service.dart';
 import 'package:drift/drift.dart';
 
-/// One fixed charge the user ticked during onboarding.
+/// One recurring charge or subscription the user set up during onboarding.
 class OnboardingCharge {
   const OnboardingCharge({
     required this.name,
@@ -13,6 +13,7 @@ class OnboardingCharge {
     required this.amountCents,
     required this.dueDay,
     this.isVariable = false,
+    this.nature = RecurrenceNature.fixedCharge,
   });
 
   final String name;
@@ -20,6 +21,15 @@ class OnboardingCharge {
   final int amountCents;
   final int dueDay;
   final bool isVariable;
+  final RecurrenceNature nature;
+}
+
+/// One spending cap the user set during onboarding.
+class OnboardingEnvelope {
+  const OnboardingEnvelope({required this.categoryId, required this.limitCents});
+
+  final int categoryId;
+  final int limitCents;
 }
 
 /// Turns the welcome-flow answers into real data, and provides the "try with
@@ -59,14 +69,13 @@ class OnboardingService {
       );
 
   /// Applies the guided setup: period start day, recurring salary, fixed
-  /// charges and an optional first envelope, then marks onboarding done.
+  /// charges, subscriptions and spending caps, then marks onboarding done.
   Future<void> completeSetup({
     required int startDay,
     int? salaryCents,
     int salaryDay = 1,
     List<OnboardingCharge> charges = const [],
-    int? envelopeCategoryId,
-    int? envelopeLimitCents,
+    List<OnboardingEnvelope> envelopes = const [],
   }) async {
     await _db.into(_db.settingsEntries).insertOnConflictUpdate(
       SettingsEntriesCompanion.insert(
@@ -100,7 +109,7 @@ class OnboardingService {
         RecurrencesCompanion.insert(
           name: c.name,
           type: TxnType.expense,
-          nature: RecurrenceNature.fixedCharge,
+          nature: c.nature,
           categoryId: Value(await _categoryId(c.categoryName)),
           accountId: accountId,
           estimatedAmountCents: c.amountCents,
@@ -114,14 +123,13 @@ class OnboardingService {
 
     await _recurrences.materialize(period);
 
-    if (envelopeCategoryId != null &&
-        envelopeLimitCents != null &&
-        envelopeLimitCents > 0) {
+    for (final e in envelopes) {
+      if (e.limitCents <= 0) continue;
       await _db.into(_db.budgets).insert(
         BudgetsCompanion.insert(
           periodId: period.id,
-          categoryId: envelopeCategoryId,
-          limitCents: envelopeLimitCents,
+          categoryId: e.categoryId,
+          limitCents: e.limitCents,
         ),
         mode: InsertMode.insertOrIgnore,
       );

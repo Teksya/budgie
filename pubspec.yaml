@@ -1,7 +1,7 @@
 name: budget
 description: "Budgie — a private, offline personal budgeting app for Android."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.4.0+5
 
 environment:
   sdk: ^3.12.2
@@ -31,6 +31,7 @@ dependencies:
   quick_actions: ^1.1.0
   rxdart: ^0.28.0
   share_plus: 12.0.2
+  simple_icons: ^16.23.0
   timezone: ^0.11.1
 
 dev_dependencies:
@@ -41,10 +42,13 @@ dev_dependencies:
   very_good_analysis: ^10.3.0
   mocktail: ^1.0.5
   flutter_launcher_icons: ^0.14.4
+  sqlite3: 3.3.4
 
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - assets/brands/
 
 flutter_launcher_icons:
   android: true

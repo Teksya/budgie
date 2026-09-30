@@ -7,7 +7,7 @@
 
 ## 1. Objectif
 
-Application mobile Android, **100 % hors ligne**, mono-utilisateur, en euros, qui permet à Olivier de :
+Application mobile Android, **sans compte ni backend**, mono-utilisateur, en euros, qui permet à Olivier de :
 
 - saisir ses revenus (salaire, primes, allocations, freelance) quand il veut ;
 - déclarer ses charges fixes (loyer, charges, électricité, eau, internet, téléphone…) et les suivre ;
@@ -26,9 +26,11 @@ Le but n'est pas de comptabiliser : c'est de **décider**. Le chiffre le plus im
 | Sujet | Décision |
 |---|---|
 | Plateforme | Android uniquement |
-| minSdk | 36 (Android 16) — *voir Décision D1* |
+| minSdk | **26 (Android 8+)** — abaissé le 2026-07-28 pour la portée Play, *voir D1* |
+| targetSdk | 36 |
 | Utilisateurs | 1 seul, aucun compte, aucun backend |
-| Données | Locales (SQLite via Drift), jamais envoyées ailleurs |
+| Données budgétaires | Locales (SQLite via Drift). Aucun code de l'app ne les envoie où que ce soit. Seule sortie possible : le fichier de sauvegarde chiffré que l'utilisateur exporte lui-même |
+| Réseau | Le build release **porte la permission `INTERNET`** (télémétrie de ML Kit, scanner de tickets) — *voir D6* |
 | Devise | EUR unique |
 | Design | Material 3 Expressive, couleur dynamique (Material You) |
 | Thèmes | Clair / Sombre / Système |
@@ -96,6 +98,14 @@ Elles peuvent aussi être **créées à la main** (une charge exceptionnelle san
 **Historique par charge** : courbe d'évolution du montant réel mois par mois (indispensable pour l'électricité et l'eau), avec moyenne et écart à l'estimé — l'app propose de réajuster l'estimé quand il dérive.
 
 **Rappels** : notification locale J-3 et le jour J pour chaque échéance non payée.
+
+**Abonnements au premier lancement** (tranché le 2026-07-27) : le parcours d'entrée propose une grille de ~24 plateformes courantes (Netflix, Spotify, Disney+, Canal+, ChatGPT, Claude, Xbox Game Pass…). Un tap demande la **date de prélèvement** (calendrier) puis le **montant** (pré-rempli au tarif courant). Le tarif pré-rempli est une commodité, jamais une affirmation — il est éditable et vieillira.
+
+**Logos** — deux sources, jamais le réseau :
+1. `simple_icons` (jeu *Simple Icons*, CC0) en **police d'icônes tree-shakée** : 1,4 Mo réduits à ~5 Ko dans l'APK. Couvre 17 marques sur 24.
+2. Les 7 restantes (Disney+, Prime Video, Canal+, ChatGPT, Microsoft 365, Xbox, Nintendo) ont **fait retirer leur marque de Simple Icons** ; elles sont livrées en **PNG 144 px dans `assets/brands/`** (~61 Ko au total). Un monogramme coloré reste le repli de dernier recours si un asset manque.
+
+**Aucune API de logos au runtime** (Brandfetch, Logo.dev, Clearbit…) : chaque tuile deviendrait un appel réseau signalant à un tiers les marques auxquelles l'utilisateur est abonné. Incompatible avec le §1 et avec D6, où la seule sortie réseau tolérée est de la télémétrie ML Kit déjà subie, pas une fuite fonctionnelle. Les logos sont donc téléchargés **une fois, à l'écriture du code**, et commités.
 
 ### 4.3 Dépenses courantes
 
@@ -178,8 +188,9 @@ Elles peuvent aussi être **créées à la main** (une charge exceptionnelle san
 
 ```
 ┌ Accueil (Dashboard)
-│   Reste-à-vivre (gros chiffre) + reste/jour
-│   Jauge de la période, jours restants
+│   Anneau de répartition — arcs par catégorie dépensée, « À payer », « Libre »
+│     avec le reste-à-vivre et le reste/jour au centre, légende dessous
+│   Jours restants
 │   Prochaines échéances (3)
 │   Enveloppes les plus tendues (3)
 │   Dernières transactions (5)
@@ -252,7 +263,9 @@ Navigation : `NavigationBar` M3 à 4 onglets + Réglages accessible depuis l'app
 
 | # | Sujet | Statut |
 |---|---|---|
-| D1 | `minSdk 36` : l'app ne s'installe que sur Android 16+. Assumé. | 🟢 tranché |
+| D1 | ~~`minSdk 36`~~ → ~~`31`~~ → **`26` (révisé le 2026-07-28)**. 36 rendait la fiche installable par une fraction négligeable du parc ; 31 restait inutilement haut, rien dans l'app ne l'exigeait. | 🟢 tranché |
+| D9 | **`USE_FINGERPRINT` retirée du manifeste fusionné** (2026-07-28). Injectée par `local_auth`, morte depuis l'API 28, mais Play la traduit en `android.hardware.fingerprint` **requis** et écarte tout appareil sans lecteur d'empreinte. La biométrie est optionnelle dans Budgie et retombe sur le code de l'appareil : la fonctionnalité est déclarée `required="false"`. | 🟢 tranché |
+| D6 | **La permission `INTERNET` est présente dans le build release.** Injectée par `transport-backend-cct` (télémétrie Google), dépendance de ML Kit / scanner de tickets. Les données budgétaires, elles, ne sortent jamais. Arbitrage du 2026-07-14 : **on garde ML Kit et on assume**, en formulant la promesse honnêtement (README, CLAUDE) et en le déclarant dans le *Data Safety* de Play. | 🟢 tranché |
 | D2 | Début de période : **1er du mois**, modifiable dans les réglages. | 🟢 tranché |
 | D3 | Photo de ticket : stockage local des images (fait grossir la sauvegarde). Phase 3. | 🟢 tranché |
 | D4 | Montant du salaire à pré-remplir dans la récurrence. | 🟡 en attente |

@@ -1,8 +1,10 @@
 import 'package:budget/app/providers.dart';
 import 'package:budget/app/theme/shapes.dart';
+import 'package:budget/core/app_currency.dart';
 import 'package:budget/core/money.dart';
 import 'package:budget/data/db/database.dart';
 import 'package:budget/data/db/enums.dart';
+import 'package:budget/l10n/app_localizations.dart';
 import 'package:budget/shared/labels.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -63,11 +65,12 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final lent = _kind == DebtKind.debtLent;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nouvelle dette / crédit')),
+      appBar: AppBar(title: Text(l.newDebtTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -76,7 +79,7 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
           AppSpacing.xl * 2,
         ),
         children: [
-          Text('Type', style: theme.textTheme.labelLarge),
+          Text(l.fieldType, style: theme.textTheme.labelLarge),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -84,7 +87,7 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
             children: [
               for (final k in DebtKind.values)
                 ChoiceChip(
-                  label: Text(k.label),
+                  label: Text(k.label(l)),
                   selected: _kind == k,
                   onSelected: (_) => setState(() => _kind = k),
                 ),
@@ -96,8 +99,8 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              labelText: 'Nom',
-              hintText: lent ? 'Prêt à un ami…' : 'Crédit auto, canapé 4x…',
+              labelText: l.fieldName,
+              hintText: lent ? l.debtNameHintLent : l.debtNameHintOwed,
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -109,8 +112,8 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
               FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
             ],
             decoration: InputDecoration(
-              labelText: lent ? 'Montant prêté' : 'Montant total dû',
-              suffixText: '€',
+              labelText: lent ? l.debtAmountLent : l.debtAmountOwed,
+              suffixText: AppCurrency.instance.symbol,
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -127,9 +130,9 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
                     ],
-                    decoration: const InputDecoration(
-                      labelText: 'Mensualité',
-                      suffixText: '€',
+                    decoration: InputDecoration(
+                      labelText: l.debtMonthlyPayment,
+                      suffixText: AppCurrency.instance.symbol,
                     ),
                   ),
                 ),
@@ -141,8 +144,8 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                     ],
-                    decoration: const InputDecoration(
-                      labelText: 'Nb échéances',
+                    decoration: InputDecoration(
+                      labelText: l.debtInstalmentsCount,
                     ),
                   ),
                 ),
@@ -158,7 +161,7 @@ class _AddDebtPageState extends ConsumerState<AddDebtPage> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Enregistrer'),
+                : Text(l.actionSave),
           ),
         ],
       ),
